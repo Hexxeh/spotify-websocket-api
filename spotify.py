@@ -1,7 +1,10 @@
 #!/usr/bin/python
 
-import base64, json, time, string, pprint
+import base64, json, time, string, pprint, sys
 from ws4py.client.threadedclient import WebSocketClient
+
+sys.path.append("proto")
+import mercury_pb2, metadata_pb2
 
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -26,7 +29,7 @@ class SpotifyClient(WebSocketClient):
 		self.api_object.login()
 
 	def closed(self, code, reason=None):
-		print code, reason
+		Logging.error("Connection closed, code %d reason %s" % (code, reason))
 
 	def received_message(self, m):
 		self.api_object.recv_packet(m)
@@ -49,6 +52,21 @@ class SpotifyUtil():
 		for c in s:
 		    v = v *62 + base62.index(c)
 		return hex(v)[2:-1]
+
+	@staticmethod
+	def metadata_resp_to_obj(metadata_type, resp):
+		if metadata_type == "album":
+			obj = metadata_pb2.Album()
+		elif metadata_type == "track":
+			obj = metadata_pb2.Track()
+		elif metadata_type == "artist":
+			obj = metadata_pb2.Artist()
+		else:
+			Logging.error("invalid metadata_type given")
+			return False
+
+		obj.ParseFromString(base64.decodestring(resp[1]))
+		return obj
 
 class SpotifyAPI():
 	def __init__(self, username, password, login_callback_func = None):
@@ -86,8 +104,11 @@ class SpotifyAPI():
 		self.send_command("sp/track_uri", args, callback)
 
 	def metadata_request(self, metadata_type, id, callback):
-		request_str = base64.b64encode("\n4hm://metadata/"+metadata_type+"/"+id+"GET")
-		args = [0, request_str]
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = "GET"
+		mercury_request.uri = "hm://metadata/"+metadata_type+"/"+id
+		req = base64.encodestring(mercury_request.SerializeToString())
+		args = [0, req]
 		self.send_command("sp/hm_b64", args, callback)
 
 	def send_command(self, name, args, callback = None):
@@ -109,6 +130,7 @@ class SpotifyAPI():
 		self.ws.send(msg_enc)
 
 	def recv_packet(self, msg):
+		Logging.notice("recv " + str(msg))
 		packet = json.loads(str(msg))
 		if "error" in packet:
 			self.handle_error(packet["error"])
@@ -131,8 +153,8 @@ class SpotifyAPI():
 			self.ws = SpotifyClient(self.settings["aps"]["ws"][0])
 			self.ws.set_api(self)
 			self.ws.connect()
-			while True:
-				a = ""
+			while not self.ws.terminated:
+				continue
 		except KeyboardInterrupt:
 			self.ws.close()
 
@@ -141,12 +163,12 @@ def track_uri_callback(sp, result):
 	Logging.notice("Track URL is "+result["uri"])
 
 def metadata_callback(sp, result):
-	for item in result:
-		print base64.decodestring(item)
+	track = SpotifyUtil.metadata_resp_to_obj("track", result)
+	print track.__str__()
 
 def login_callback(sp, result):
-	sp.track_uri(SpotifyUtil.uri2id("spotify:track:6FjAGZp7c0Z2uaL3eHkXsx"), "mp3160", track_uri_callback)
-	#sp.metadata_request("album", "579ad5cab22148df8d6c869eae8db911", metadata_callback)
+	#sp.track_uri(SpotifyUtil.uri2id("spotify:track:6FjAGZp7c0Z2uaL3eHkXsx"), "mp3160", track_uri_callback)
+	sp.metadata_request("track", SpotifyUtil.uri2id("spotify:track:6JEK0CvvjDjjMUBFoXShNZ"), metadata_callback)
 
 sp = SpotifyAPI("username", "password", login_callback)
 sp.auth()
