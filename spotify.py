@@ -9,17 +9,27 @@ import mercury_pb2, metadata_pb2
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 class Logging():
+	log_level = 2
+
+	@staticmethod
+	def debug(str):
+		if Logging.log_level >= 3:
+			print "[DEBUG] " + str
+
 	@staticmethod
 	def notice(str):
-		print "[NOTICE] " + str
+		if Logging.log_level >= 2:
+			print "[NOTICE] " + str
 
 	@staticmethod
 	def warn(str):
-		print "[WARN] " + str
+		if Logging.log_level >= 1:
+			print "[WARN] " + str
 
 	@staticmethod
 	def error(str):
-		print "[ERROR] " + str
+		if Logging.log_level >= 0:
+			print "[ERROR] " + str
 
 class SpotifyClient(WebSocketClient):
 	def set_api(self, api):
@@ -126,11 +136,11 @@ class SpotifyAPI():
 
 	def send_string(self, msg):
 		msg_enc = json.dumps(msg, separators=(',',':'))
-		Logging.notice("sent " + msg_enc)
+		Logging.debug("sent " + msg_enc)
 		self.ws.send(msg_enc)
 
 	def recv_packet(self, msg):
-		Logging.notice("recv " + str(msg))
+		Logging.debug("recv " + str(msg))
 		packet = json.loads(str(msg))
 		if "error" in packet:
 			self.handle_error(packet["error"])
@@ -160,14 +170,15 @@ class SpotifyAPI():
 
 
 def track_uri_callback(sp, result):
-	Logging.notice("Track URL is "+result["uri"])
+	print "URL: "+result["uri"]
 
 def metadata_callback(sp, result):
 	track = SpotifyUtil.metadata_resp_to_obj("track", result)
-	print track.__str__()
+	print "Title: "+track.name
+	print "Artist: "+track.artist[0].name
+	sp.track_uri(SpotifyUtil.uri2id("spotify:track:6FjAGZp7c0Z2uaL3eHkXsx"), "mp3160", track_uri_callback)
 
 def login_callback(sp, result):
-	#sp.track_uri(SpotifyUtil.uri2id("spotify:track:6FjAGZp7c0Z2uaL3eHkXsx"), "mp3160", track_uri_callback)
 	sp.metadata_request("track", SpotifyUtil.uri2id("spotify:track:6JEK0CvvjDjjMUBFoXShNZ"), metadata_callback)
 
 sp = SpotifyAPI("username", "password", login_callback)
