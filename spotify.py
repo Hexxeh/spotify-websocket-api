@@ -4,12 +4,12 @@ import base64, binascii, httplib, json, pprint, re, string, sys, time, urllib
 from ws4py.client.threadedclient import WebSocketClient
 
 sys.path.append("proto")
-import mercury_pb2, metadata_pb2
+import mercury_pb2, metadata_pb2, playlist4content_pb2, playlist4meta_pb2
 
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 class Logging():
-	log_level = 2
+	log_level = 3
 
 	@staticmethod
 	def debug(str):
@@ -143,6 +143,14 @@ class SpotifyAPI():
 		args = [0, req]
 		self.send_command("sp/hm_b64", args, callback)
 
+	def playlist_request(self, playlist_id, fromnum, num, callback):
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = "GET"
+		mercury_request.uri = "hm://playlist/user/geel9/playlist/" + playlist_id + "?from=" + `fromnum` + "&length=" + `num`
+		req = base64.encodestring(mercury_request.SerializeToString())
+		args = [0, req]
+		self.send_command("sp/hm_b64", args, callback)
+
 	def send_command(self, name, args, callback = None):
 		msg = {
 			"name": name,
@@ -167,6 +175,8 @@ class SpotifyAPI():
 		if "error" in packet:
 			self.handle_error(packet["error"])
 			return
+		elif "message" in packet:
+			self.handle_message(packet["message"])
 		elif "id" in packet:
 			pid = packet["id"]
 			if pid in self.cmd_callbacks:
@@ -174,6 +184,14 @@ class SpotifyAPI():
 				self.cmd_callbacks.pop(pid)
 			else:
 				Logging.notice("Unhandled command response with id " + str(pid))
+
+	def handle_message(self, msg):
+		cmd = msg[0]
+		if len(msg) > 1:
+			payload = msg[1]
+		if cmd == "do_work":
+			Logging.debug("Got do_work message, payload: "+payload)
+			self.send_command("sp/work_done", ["v2"])
 
 	def handle_error(self, err):
 		Logging.error(str(err))
@@ -200,8 +218,38 @@ def metadata_callback(sp, result):
 		print SpotifyUtil.gid2id(track.gid)
 		sp.track_uri(SpotifyUtil.gid2id(track.gid), "mp3160", track_uri_callback)
 
+def playlist_track_listing(sp, playlist_string):
+	regex = "\\$(spotify:track:.+)"
+	ret = re.findall(regex, playlist_string)
+	return ret
+
+def playlist_callback(sp, result):
+	#We parse it into this because it seems to be able to get the
+	#playlist NAME from the result.
+	obj = playlist4content_pb2.ListItems()
+	res = base64.decodestring(result[1])
+	obj.ParseFromString(res)
+	playlistname = obj.items[0].uri
+	print obj.__str__()
+
+	#We can't use protobuf to parse the playlist URIs (yet) so we need to regex it (I'M SORRY HEXXEH)
+	tracks = playlist_track_listing(sp, res)
+	print "Playlist name: " + playlistname
+	print "There are " + `len(tracks)` + " track in this playlist"
+	i = 0
+	for track in tracks:
+		print track
+		id = SpotifyUtil.uri2id(track)
+		#print id
+		sp.track_uri(id, "mp3160", track_uri_callback)
+		#sp.metadata_request("track", SpotifyUtil.uri2id(track), metadata_callback)
+		i += 1
+
+
 def login_callback(sp, result):
-	sp.metadata_request("album", SpotifyUtil.uri2id("spotify:album:3OmHoatMS34vM7ZKb4WCY3"), metadata_callback)
+	#sp.metadata_request("album", SpotifyUtil.uri2id("spotify:album:3OmHoatMS34vM7ZKb4WCY3"), metadata_callback)
+	#sp.playlist_request("2ITsmcN6qU9NbotiH02Skn", 0, 200, playlist_callback)
+	sp.metadata_request("track", SpotifyUtil.uri2id("spotify:track:6JEK0CvvjDjjMUBFoXShNZ"), metadata_callback)
 
 sp = SpotifyAPI(login_callback)
 sp.auth()
