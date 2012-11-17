@@ -125,7 +125,7 @@ class SpotifyAPI():
 	def playlist_request(self, playlist_id, fromnum, num, callback):
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = "GET"
-		mercury_request.uri = "hm://playlist/user/geel9/playlist/2ITsmcN6qU9NbotiH02Skn?from=0&length=200"
+		mercury_request.uri = "hm://playlist/user/geel9/playlist/" + playlist_id + "?from=" + `fromnum` + "&length=" + `num`
 		req = base64.encodestring(mercury_request.SerializeToString())
 		args = [0, req]
 		self.send_command("sp/hm_b64", args, callback)
@@ -216,7 +216,7 @@ def playlist_callback(sp, result):
 
 
 def login_callback(sp, result):
-	sp.playlist_request("3U679q1vMPEJhFwrqP5RFw", 150, 200, playlist_callback)
+	sp.playlist_request("2ITsmcN6qU9NbotiH02Skn", 0, 200, playlist_callback)
 	#sp.metadata_request("track", SpotifyUtil.uri2id("spotify:track:6JEK0CvvjDjjMUBFoXShNZ"), metadata_callback)
 
 sp = SpotifyAPI("username", "password", login_callback)
