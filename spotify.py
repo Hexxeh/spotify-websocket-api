@@ -1,10 +1,11 @@
 #!/usr/bin/python
 
-import base64, json, time, string, pprint, sys
+import base64, json, time, string, pprint, sys, re
+from time import sleep
 from ws4py.client.threadedclient import WebSocketClient
 
 sys.path.append("proto")
-import mercury_pb2, metadata_pb2
+import mercury_pb2, metadata_pb2, playlist4content_pb2, playlist4meta_pb2
 
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -121,6 +122,14 @@ class SpotifyAPI():
 		args = [0, req]
 		self.send_command("sp/hm_b64", args, callback)
 
+	def playlist_request(self, playlist_id, fromnum, num, callback):
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = "GET"
+		mercury_request.uri = "hm://playlist/user/geel9/playlist/2ITsmcN6qU9NbotiH02Skn?from=0&length=200"
+		req = base64.encodestring(mercury_request.SerializeToString())
+		args = [0, req]
+		self.send_command("sp/hm_b64", args, callback)
+
 	def send_command(self, name, args, callback = None):
 		msg = {
 			"name": name,
@@ -171,6 +180,7 @@ class SpotifyAPI():
 
 def track_uri_callback(sp, result):
 	print "URL: "+result["uri"]
+	time.sleep(3)
 
 def metadata_callback(sp, result):
 	track = SpotifyUtil.metadata_resp_to_obj("track", result)
@@ -178,8 +188,36 @@ def metadata_callback(sp, result):
 	print "Artist: "+track.artist[0].name
 	sp.track_uri(SpotifyUtil.uri2id("spotify:track:6FjAGZp7c0Z2uaL3eHkXsx"), "mp3160", track_uri_callback)
 
+def playlist_track_listing(sp, playlist_string):
+	regex = "\\$(spotify:track:.+)"
+	ret = re.findall(regex, playlist_string)
+	return ret
+
+def playlist_callback(sp, result):
+	#We parse it into this because it seems to be able to get the
+	#playlist NAME from the result.
+	obj = playlist4content_pb2.ListItems()
+	res = base64.decodestring(result[1])
+	obj.ParseFromString(res)
+	playlistname = obj.items[0].uri
+
+	#We can't use protobuf to parse the playlist URIs (yet) so we need to regex it (I'M SORRY HEXXEH)
+	tracks = playlist_track_listing(sp, res)
+	print "Playlist name: " + playlistname
+	print "There are " + `len(tracks)` + " track in this playlist"
+	i = 0
+	for track in tracks:
+		print track
+		id = SpotifyUtil.uri2id(track)
+		#print id
+		sp.track_uri(id, "mp3160", track_uri_callback)
+		#sp.metadata_request("track", SpotifyUtil.uri2id(track), metadata_callback)
+		i += 1
+
+
 def login_callback(sp, result):
-	sp.metadata_request("track", SpotifyUtil.uri2id("spotify:track:6JEK0CvvjDjjMUBFoXShNZ"), metadata_callback)
+	sp.playlist_request("3U679q1vMPEJhFwrqP5RFw", 150, 200, playlist_callback)
+	#sp.metadata_request("track", SpotifyUtil.uri2id("spotify:track:6JEK0CvvjDjjMUBFoXShNZ"), metadata_callback)
 
 sp = SpotifyAPI("username", "password", login_callback)
 sp.auth()
