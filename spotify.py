@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import base64, json, time, string, pprint, sys
+import base64, binascii, httplib, json, pprint, re, string, sys, time, urllib
 from ws4py.client.threadedclient import WebSocketClient
 
 sys.path.append("proto")
@@ -46,6 +46,10 @@ class SpotifyClient(WebSocketClient):
 
 class SpotifyUtil():
 	@staticmethod
+	def gid2id(gid):
+		return binascii.hexlify(gid)
+
+	@staticmethod
 	def id2uri(uritype, v):
 		res = []
 		v = int(v, 16)
@@ -79,11 +83,11 @@ class SpotifyUtil():
 		return obj
 
 class SpotifyAPI():
-	def __init__(self, username, password, login_callback_func = None):
-		self.auth_server = "https://play.spotify.com"
+	def __init__(self, login_callback_func = None):
+		self.auth_server = "play.spotify.com"
 
-		self.username = username
-		self.password = password
+		self.username = None
+		self.password = None
 		self.settings = None
 		self.connected = False
 
@@ -97,9 +101,27 @@ class SpotifyAPI():
 			Logging.warn("You must only authenticate once per API object")
 			return False
 
-		with open ("settings.json", "r") as myfile:
-			data=myfile.read().replace('\n', '')
-			self.settings = json.loads(data)
+		with open ("sps.txt", "r") as myfile:
+			sps=myfile.read().replace('\n', '')
+
+		conn = httplib.HTTPSConnection(self.auth_server)
+		headers = {
+			"Cookie": "sps="+sps
+		}
+		conn.request("GET", "/", headers = headers)
+		response = conn.getresponse()
+		data = response.read()
+		conn.close()
+
+		rx = re.compile("Spotify.Web.App.initialize\((.*), null\);")
+		r = rx.search(data)
+
+		if len(r.groups()) < 1:
+			Logging.error("There was a problem authenticating, no auth JSON found")
+			return False
+
+		settings_str = r.groups()[0]
+		self.settings = json.loads(settings_str)
 
 	def login(self):
 		Logging.notice("Logging in")
@@ -173,14 +195,14 @@ def track_uri_callback(sp, result):
 	print "URL: "+result["uri"]
 
 def metadata_callback(sp, result):
-	track = SpotifyUtil.metadata_resp_to_obj("track", result)
-	print "Title: "+track.name
-	print "Artist: "+track.artist[0].name
-	sp.track_uri(SpotifyUtil.uri2id("spotify:track:6FjAGZp7c0Z2uaL3eHkXsx"), "mp3160", track_uri_callback)
+	album = SpotifyUtil.metadata_resp_to_obj("album", result)
+	for track in album.disc[0].track:
+		print SpotifyUtil.gid2id(track.gid)
+		sp.track_uri(SpotifyUtil.gid2id(track.gid), "mp3160", track_uri_callback)
 
 def login_callback(sp, result):
-	sp.metadata_request("track", SpotifyUtil.uri2id("spotify:track:6JEK0CvvjDjjMUBFoXShNZ"), metadata_callback)
+	sp.metadata_request("album", SpotifyUtil.uri2id("spotify:album:3OmHoatMS34vM7ZKb4WCY3"), metadata_callback)
 
-sp = SpotifyAPI("username", "password", login_callback)
+sp = SpotifyAPI(login_callback)
 sp.auth()
 sp.connect()
