@@ -9,7 +9,7 @@ import mercury_pb2, metadata_pb2, playlist4content_pb2, playlist4meta_pb2
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 class Logging():
-	log_level = 3
+	log_level = 2
 
 	@staticmethod
 	def debug(str):
@@ -88,8 +88,10 @@ class SpotifyAPI():
 
 		self.username = None
 		self.password = None
+		self.account_type = None
+		self.country = None
+
 		self.settings = None
-		self.connected = False
 
 		self.ws = None
 		self.seq = 0
@@ -123,13 +125,22 @@ class SpotifyAPI():
 		settings_str = r.groups()[0]
 		self.settings = json.loads(settings_str)
 
+	def populate_userdata_callback(self, sp, resp):
+		self.username = resp["user"]
+		self.country = resp["country"]
+		self.account_type = resp["catalogue"]
+
+	def logged_in(self, sp, resp):
+		self.user_info_request(self.populate_userdata_callback)
+		self.login_callback(self, resp)
+
 	def login(self):
 		Logging.notice("Logging in")
 		credentials = self.settings["credentials"][0].split(":", 2)
 		credentials[2] = credentials[2].decode("string_escape")
 		credentials_enc = json.dumps(credentials, separators=(',',':'))
 
-		self.send_command("connect", credentials, self.login_callback)
+		self.send_command("connect", credentials, self.logged_in)
 
 	def track_uri(self, id, codec, callback):
 		args = [codec, id]
@@ -151,7 +162,10 @@ class SpotifyAPI():
 		args = [0, req]
 		self.send_command("sp/hm_b64", args, callback)
 
-	def send_command(self, name, args, callback = None):
+	def user_info_request(self, callback):
+		self.send_command("sp/user_info", callback = callback)
+
+	def send_command(self, name, args = [], callback = None):
 		msg = {
 			"name": name,
 			"id": str(self.seq),
@@ -212,11 +226,16 @@ class SpotifyAPI():
 def track_uri_callback(sp, result):
 	print "URL: "+result["uri"]
 
-def metadata_callback(sp, result):
+def track_metadata_callback(sp, result):
+	track = SpotifyUtil.metadata_resp_to_obj("track", result)
+	print track.name
+
+def album_metadata_callback(sp, result):
 	album = SpotifyUtil.metadata_resp_to_obj("album", result)
+	print album.name+"\n"
 	for track in album.disc[0].track:
-		print SpotifyUtil.gid2id(track.gid)
-		sp.track_uri(SpotifyUtil.gid2id(track.gid), "mp3160", track_uri_callback)
+		sp.metadata_request("track", SpotifyUtil.gid2id(track.gid), track_metadata_callback)
+		#sp.track_uri(SpotifyUtil.gid2id(track.gid), "mp3160", track_uri_callback)
 
 def playlist_track_listing(sp, playlist_string):
 	regex = "\\$(spotify:track:.+)"
@@ -245,11 +264,13 @@ def playlist_callback(sp, result):
 		#sp.metadata_request("track", SpotifyUtil.uri2id(track), metadata_callback)
 		i += 1
 
+def userdata_callback(sp, result):
+	print result["user"]
 
 def login_callback(sp, result):
-	#sp.metadata_request("album", SpotifyUtil.uri2id("spotify:album:3OmHoatMS34vM7ZKb4WCY3"), metadata_callback)
+	#sp.user_info_request(userdata_callback)
+	sp.metadata_request("album", SpotifyUtil.uri2id("spotify:album:3OmHoatMS34vM7ZKb4WCY3"), album_metadata_callback)
 	#sp.playlist_request("2ITsmcN6qU9NbotiH02Skn", 0, 200, playlist_callback)
-	sp.metadata_request("track", SpotifyUtil.uri2id("spotify:track:6JEK0CvvjDjjMUBFoXShNZ"), metadata_callback)
 
 sp = SpotifyAPI(login_callback)
 sp.auth()
