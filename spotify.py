@@ -125,7 +125,7 @@ class SpotifyAPI():
 		rx = re.compile("Spotify.Web.App.initialize\((.*), null\);")
 		r = rx.search(data)
 
-		if len(r.groups()) < 1:
+		if not r or len(r.groups()) < 1:
 			Logging.error("There was a problem authenticating, no auth JSON found")
 			return False
 
@@ -218,6 +218,10 @@ class SpotifyAPI():
 		Logging.error(str(err))
 
 	def connect(self):
+		if self.settings == None:
+			Logging.error("You must authenticate before connecting")
+			return False
+
 		Logging.notice("Connecting to "+self.settings["aps"]["ws"][0])
 		
 		try:
