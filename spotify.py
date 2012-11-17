@@ -97,6 +97,13 @@ class SpotifyAPI():
 		self.seq = 0
 		self.cmd_callbacks = {}
 		self.login_callback = login_callback_func
+		self.currentLid = ""
+		self.currentUri = ""
+		self.currentMS = 0
+		self.currentUserid = "121278260"
+		self.currentPlaylistId = "3U679q1vMPEJhFwrqP5RFw"
+		self.currentTracks = []
+		self.currentTrackNum = 0
 
 	def auth(self):
 		if self.settings != None:
@@ -157,10 +164,29 @@ class SpotifyAPI():
 	def playlist_request(self, playlist_id, fromnum, num, callback):
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = "GET"
-		mercury_request.uri = "hm://playlist/user/geel9/playlist/" + playlist_id + "?from=" + `fromnum` + "&length=" + `num`
+		mercury_request.uri = "hm://playlist/user/121278260/playlist/" + playlist_id + "?from=" + `fromnum` + "&length=" + `num`
 		req = base64.encodestring(mercury_request.SerializeToString())
 		args = [0, req]
 		self.send_command("sp/hm_b64", args, callback)
+
+	def track_progress(self, lid, ms, randnum, userid, playlist, trackuri, callback):
+		args = [lid, "playlist", "clickrow", ms, randnum,
+		 "spotify:user:" + `userid` + ":playlist: " +`playlist`,
+		 trackuri, "spotify:app:playlist:" + `playlist`, "0.1.0", "com.spotify"]
+		self.send_command("sp/track_progress", args, callback)
+
+
+	def track_event(self, lid, eventcode, secondNum, callback):
+		args = [lid, eventcode, secondNum]
+		#print args
+		self.send_command("sp/track_event", args, callback)
+
+	def track_end(self, lid, XNum, progressnum, uri, userid, playlistid, callback):
+		args = [lid, XNum, XNum, 0, 0, 0, 0, progressnum, uri,
+		 "spotify:user:" + `userid` + ":playlist:" + `playlistid`, "playlist", "playlist", "clickrow", "clickrow",
+		 "spotify:app:playlist:" + `userid` + ":" + `playlistid`, "0.1.0", "com.spotify", XNum]
+		self.send_command("sp/track_end", args, callback)
+
 
 	def user_info_request(self, callback):
 		self.send_command("sp/user_info", callback = callback)
@@ -224,7 +250,65 @@ class SpotifyAPI():
 
 
 def track_uri_callback(sp, result):
-	print "URL: "+result["uri"]
+	#print `result`
+	errorcode = result["type"]
+	if errorcode == 3:
+		Logging.notice("Track is not available. Skipping.")
+		track_end_callback(sp, None)
+		return
+
+	if sp.currentLid != "":
+		print("LID")
+		sp.track_end(sp.currentLid, 0, 97, sp.currentUri, sp.currentUserid, sp.currentPlaylistId, track_end_callback)
+
+	lid = result["lid"]
+	#print "URL: " +result["uri"]
+	#print "LID: " + lid
+	Logging.notice("Got URL successfully")
+	sp.currentLid = lid
+	sp.track_event(lid, 3, 0, track_event_callback)
+
+def track_event_callback(sp, result):
+	Logging.notice("Track event 'successful'! Calling sp/track_progress." + result.__str__())
+	sp.track_progress(sp.currentLid, 500, 97, sp.currentUserid, sp.currentPlaylistId, sp.currentUri, track_progress_callback)
+
+def track_end_callback(sp, result):
+	#time.sleep(5)
+	Logging.notice("Track ended.")
+	sp.currentTrackNum += 1
+	uri = sp.currentTracks[sp.currentTrackNum]
+	sp.currentUri = uri
+	print "Current URI: " + uri
+	id = SpotifyUtil.uri2id(uri)
+	sp.send_command("sp/echo", ["h"])
+	sp.send_command("sp/log", [30, 1, "heartbeat", 77, 77, 2, False])
+	sp.track_uri(id, "mp3160", track_uri_callback)
+
+
+def track_progress_callback(sp, result):
+	ms = 500
+	if sp.currentMS == 0:
+		ms = 15000
+	elif sp.currentMS == 1:
+		ms = 30000
+	elif sp.currentMS == 2:
+		ms = 45000
+	sp.currentMS += 1
+	if sp.currentMS == 2:
+		time.sleep(1)
+		sp.currentMS = 0
+		Logging.notice("Song ended, calling sp/track_event")
+		Logging.notice("Current URI: " + sp.currentUri)
+		sp.track_event(sp.currentLid, 4, 45000, track_end_callback)
+		#It seems track_end is only called AFTER track_uri is called for the new song, so it's irrelevant here.
+		#sp.track_end(sp.currentLid, 0, 97, sp.currentUri, sp.currentUserid, sp.currentPlaylistId, track_end_callback)
+	else:
+		Logging.notice("Song is " + `ms` + "ms in.")
+		sp.track_progress(sp.currentLid, ms, 97, sp.currentUserid, sp.currentPlaylistId, sp.currentUri, track_progress_callback)
+
+
+
+
 
 def track_metadata_callback(sp, result):
 	track = SpotifyUtil.metadata_resp_to_obj("track", result)
@@ -249,28 +333,23 @@ def playlist_callback(sp, result):
 	res = base64.decodestring(result[1])
 	obj.ParseFromString(res)
 	playlistname = obj.items[0].uri
-	print obj.__str__()
 
 	#We can't use protobuf to parse the playlist URIs (yet) so we need to regex it (I'M SORRY HEXXEH)
 	tracks = playlist_track_listing(sp, res)
 	print "Playlist name: " + playlistname
 	print "There are " + `len(tracks)` + " track in this playlist"
-	i = 0
-	for track in tracks:
-		print track
-		id = SpotifyUtil.uri2id(track)
-		#print id
-		sp.track_uri(id, "mp3160", track_uri_callback)
-		#sp.metadata_request("track", SpotifyUtil.uri2id(track), metadata_callback)
-		i += 1
+	sp.currentTracks = tracks
+	sp.currentUri = tracks[0];
+	id = SpotifyUtil.uri2id(tracks[0])
+	sp.track_uri(id, "mp3160", track_uri_callback)
 
 def userdata_callback(sp, result):
 	print result["user"]
 
 def login_callback(sp, result):
 	#sp.user_info_request(userdata_callback)
-	sp.metadata_request("album", SpotifyUtil.uri2id("spotify:album:3OmHoatMS34vM7ZKb4WCY3"), album_metadata_callback)
-	#sp.playlist_request("2ITsmcN6qU9NbotiH02Skn", 0, 200, playlist_callback)
+	#sp.metadata_request("album", SpotifyUtil.uri2id("spotify:album:3OmHoatMS34vM7ZKb4WCY3"), album_metadata_callback)
+	sp.playlist_request("3U679q1vMPEJhFwrqP5RFw", 102, 200, playlist_callback)
 
 sp = SpotifyAPI(login_callback)
 sp.auth()

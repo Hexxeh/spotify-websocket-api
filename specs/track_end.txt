@@ -1,0 +1,19 @@
+sp/track_end
+	-Track lid
+	-Number ("X" from now on)
+	-X again
+	-Int (0 from what I've seen)
+	-Int (0 from what I've seen)
+	-Int (0 from what I've seen)
+	-Int (0 from what I've seen)
+	-Int (Same number that's passed in track_progress after milliseconds played )
+	-Track URI
+	-spotify:user:userid:playlist:playlistid
+	-Track ending origin ("playlist")
+	-Next track origin ("playlist")
+	-Track ending start reason ("clickrow", "nextbtn")
+	-Next track start reason ("clickrow", "nextbtn")
+	-spotify:app:playlist:userid:playlistid
+	-"0.1.0"
+	-"com.spotify"
+	-X again
