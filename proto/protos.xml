@@ -1,0 +1,929 @@
+      message RequestHeader {
+
+        enum Platform {
+          WIN32_X86      = 0;
+          OSX_X86        = 1;
+          LINUX_X86      = 2;
+          IPHONE_ARM     = 3;
+          SYMBIANS60_ARM = 4;
+          OSX_POWERPC    = 5;
+          ANDROID_ARM    = 6;
+          WINCE_ARM      = 7;
+          LINUX_X86_64   = 8;
+          OSX_X86_64     = 9;
+          PALM_ARM       = 10;
+          LINUX_SH       = 11;
+          FREEBSD_X86    = 12;
+          FREEBSD_X86_64 = 13;
+          BLACKBERRY_ARM = 14;
+          SONOS_UNKNOWN  = 15;
+          LINUX_MIPS     = 16;
+          LINUX_ARM      = 17;
+          LOGITECH_ARM   = 18;
+          LINUX_BLACKFIN = 19;
+          ONKYO_ARM      = 21;
+          QNXNTO_ARM     = 22;
+          BADPLATFORM    = 255;
+        }
+
+        enum Priority {
+          PRIORITY_DEFAULT = 0;
+          PRIORITY_POLLING = 1;
+        }
+
+        optional string market  = 1;
+        optional Platform platform = 2;
+        optional Priority priority = 3;
+        optional int32 client_api_version_low = 4;
+        optional int32 client_api_version_high = 5;
+        optional AppInfoList app_infos = 6;
+      }
+      message AppItem {
+        enum Requirement {
+          REQUIRED_INSTALL = 1;
+          LAZYLOAD = 2;
+          OPTIONAL_INSTALL = 3;
+        }
+        optional string app_name = 1;
+        optional Requirement requirement = 2;
+        optional int32 status = 3;
+        optional string manifest = 4;
+        optional string checksum = 5;
+        optional string bundle_uri = 6;
+        optional string small_icon_uri = 7;
+        optional string large_icon_uri = 8;
+        optional string medium_icon_uri = 9;
+        optional IdentifierList categories = 10;
+      }
+      message AppList {
+        repeated AppItem items = 1;
+      }
+      message IdentifierList {
+          repeated string identifiers = 1;
+      }
+    ]]>
+  </appstore>
+  <metadata><![CDATA[
+      package spotify.metadata.proto;
+      option optimize_for = SPEED;
+      option java_package = "com.spotify.metadata.proto";
+      option java_outer_classname = "Metadata";
+      message TopTracks {
+       optional string country = 1;
+       repeated Track track = 2;
+      }
+      message ActivityPeriod {
+       optional sint32 start_year = 1;
+       optional sint32 end_year = 2;
+       optional sint32 decade = 3;
+      }
+      message Artist {
+       optional bytes gid = 1;
+       optional string name = 2;
+       optional sint32 popularity = 3;
+       repeated TopTracks top_track = 4;
+       repeated AlbumGroup album_group = 5;
+       repeated AlbumGroup single_group = 6;
+       repeated AlbumGroup compilation_group = 7;
+       repeated AlbumGroup appears_on_group = 8;
+       repeated string genre = 9;
+       repeated ExternalId external_id = 10;
+       repeated Image portrait = 11;
+       repeated Biography biography = 12;
+       repeated ActivityPeriod activity_period = 13;
+       repeated Restriction restriction = 14;
+       repeated Artist related = 15;
+      }
+      message AlbumGroup {
+       repeated Album album = 1;
+      }
+      message Date {
+       optional sint32 year = 1;
+       optional sint32 month = 2;
+       optional sint32 day = 3;
+      }
+      message Album {
+       enum Type {
+       ALBUM = 1;
+       SINGLE = 2;
+       COMPILATION = 3;
+       }
+       optional bytes gid = 1;
+       optional string name = 2;
+       repeated Artist artist = 3;
+       optional Type type = 4;
+       optional string label = 5;
+       optional Date date = 6;
+       optional sint32 popularity = 7;
+       repeated string genre = 8;
+       repeated Image cover = 9;
+       repeated ExternalId external_id = 10;
+       repeated Disc disc = 11;
+       repeated string review = 12;
+       repeated Copyright copyright = 13;
+       repeated Restriction restriction = 14;
+       repeated Album related = 15;
+      }
+
+      message Track {
+       optional bytes gid = 1;
+       optional string name = 2;
+       optional Album album = 3;
+       repeated Artist artist = 4;
+       optional sint32 number = 5;
+       optional sint32 disc_number = 6;
+       optional sint32 duration = 7;
+       optional sint32 popularity = 8;
+       optional bool explicit = 9;
+       repeated ExternalId external_id = 10;
+       repeated Restriction restriction = 11;
+       repeated AudioFile file = 12;
+       repeated Track alternative = 13;
+      }
+      message Image {
+       enum Size {
+       DEFAULT = 0;
+       SMALL = 1;
+       LARGE = 2;
+       XLARGE = 3;
+       }
+       optional bytes file_id = 1;
+       optional Size size = 2;
+       optional sint32 width = 3;
+       optional sint32 height = 4;
+      }
+      message Biography {
+       optional string text = 1;
+       repeated Image portrait = 2;
+      }
+      message Disc {
+       optional sint32 number = 1;
+       optional string name = 2;
+       repeated Track track = 3;
+      }
+      message Copyright {
+       enum Type {
+       P = 0;
+       C = 1;
+       }
+       optional Type type = 1;
+       optional string text = 2;
+      }
+      message Restriction {
+       enum Catalogue {
+       AD = 0;
+       SUBSCRIPTION = 1;
+       }
+       enum Type {
+       STREAMING = 0;
+       }
+       repeated Catalogue catalogue = 1;
+       optional string countries_allowed = 2;
+       optional string countries_forbidden = 3;
+       optional Type type = 4;
+      }
+      message ExternalId {
+       optional string type = 1;
+       optional string id = 2;
+      }
+      message AudioFile {
+       enum Format {
+       OGG_VORBIS_96 = 0;
+       OGG_VORBIS_160 = 1;
+       OGG_VORBIS_320 = 2;
+       MP3_256 = 3;
+       MP3_320 = 4;
+       MP3_160 = 5;
+       }
+       optional bytes file_id = 1;
+       optional Format format = 2;
+      }
+    ]]>
+  </metadata>
+  <mercury><![CDATA[
+      package spotify.mercury.proto;
+      message MercuryMultiGetRequest {
+       repeated MercuryRequest request = 1;
+      }
+      message MercuryMultiGetReply {
+       repeated MercuryReply reply = 1;
+      }
+      message MercuryRequest {
+       optional string uri = 1;
+       optional string content_type = 2;
+       optional bytes body = 3;
+       optional bytes etag = 4;
+      }
+      message MercuryReply {
+       enum CachePolicy {
+       CACHE_NO = 1;
+       CACHE_PRIVATE = 2;
+       CACHE_PUBLIC = 3;
+       }
+       optional sint32 status_code = 1;
+       optional string status_message = 2;
+       optional CachePolicy cache_policy = 3;
+       optional sint32 ttl = 4;
+       optional bytes etag = 5;
+       optional string content_type = 6;
+       optional bytes body = 7;
+      }
+    ]]>
+  </mercury>
+  <toplist><![CDATA[
+      message Toplist {
+        repeated string items = 1;
+      }
+    ]]>
+  </toplist>
+  <social><![CDATA[
+      message DecorationData {
+        optional string username = 1;
+        optional string full_name = 2;
+        optional string image_url = 3;
+        optional int32 subscriber_count = 4;
+        optional int32 status = 5;
+      }
+    ]]>
+  </social>
+  <playlist4changes><![CDATA[
+      package spotify.playlist4.proto;
+
+      option optimize_for = SPEED;
+
+      option java_package = "com.spotify.playlist4.proto";
+
+      message ChangeInfo {
+        optional string user = 1;
+        optional int32 timestamp = 2;
+        optional bool admin = 3;
+        optional bool undo = 4;
+        optional bool redo = 5;
+        optional bool merge = 6;
+        optional bool compressed = 7;
+        optional bool migration = 8;
+      }
+      message Delta {
+        optional bytes base_version = 1;
+        repeated Op ops = 2;
+        optional ChangeInfo info = 4;
+      }
+      message Merge {
+        optional bytes base_version = 1;
+        optional bytes merge_version = 2;
+        optional ChangeInfo info = 4;
+      }
+      message ChangeSet {
+        enum Kind {
+          KIND_UNKNOWN = 0;
+          DELTA = 2;
+          MERGE = 3;
+        };
+        required Kind kind = 1;
+        optional Delta delta = 2;
+        optional Merge merge = 3;
+      }
+      message RevisionTaggedChangeSet {
+        required bytes revision = 1;
+        required ChangeSet change_set = 2;
+      }
+      message Diff {
+        required bytes from_revision = 1;
+        repeated Op ops = 2;
+        required bytes to_revision = 3;
+      }
+      message ListDump {
+        optional bytes latestRevision = 1;
+        optional int32 length = 2;
+        optional ListAttributes attributes = 3;
+        optional ListChecksum checksum = 4;
+        optional ListItems contents = 5;
+        repeated Delta pendingDeltas = 7;
+      }
+      message ListChanges {
+        optional bytes baseRevision = 1;
+        repeated Delta deltas = 2;
+        optional bool wantResultingRevisions = 3;
+        optional bool wantSyncResult = 4;
+        optional ListDump dump = 5;
+        repeated int32 nonces = 6;
+      }
+      message SelectedListContent {
+        optional bytes revision = 1;
+        optional int32 length = 2;
+        optional ListAttributes attributes = 3;
+        optional ListChecksum checksum = 4;
+        optional ListItems contents = 5;
+        optional Diff diff = 6;
+
+        optional Diff syncResult = 7;
+        repeated bytes resultingRevisions = 8;
+
+        optional bool multipleHeads = 9;
+
+        optional bool upToDate = 10;
+
+        repeated ClientResolveAction resolveAction = 12;
+        repeated ClientIssue issues = 13;
+
+        repeated int32 nonces = 14;
+      }
+    ]]>
+  </playlist4changes>
+  <playlist4content><![CDATA[
+      package spotify.playlist4.proto;
+
+      option optimize_for = SPEED;
+
+      option java_package = "com.spotify.playlist4.proto";
+
+      message Item {
+        required string uri = 1;
+        optional ItemAttributes attributes = 2;
+      }
+      message ListItems {
+        required int32 pos = 1;
+        required bool truncated = 2;
+        repeated Item items = 3;
+      }
+      message ContentRange {
+        required int32 pos = 1;
+        optional int32 length = 2;
+      }
+      message ListContentSelection {
+        optional bool wantRevision = 1;
+        optional bool wantLength = 2;
+        optional bool wantAttributes = 3;
+        optional bool wantChecksum = 4;
+        optional bool wantContent = 5;
+        optional ContentRange contentRange = 6;
+        optional bool wantDiff = 7;
+        optional bytes baseRevision = 8;
+        optional bytes hintRevision = 9;
+        optional bool wantNothingIfUpToDate = 10;
+        optional bool wantResolveAction = 12;
+        repeated ClientIssue issues = 13;
+        repeated ClientResolveAction resolveAction = 14;
+      }
+    ]]>
+  </playlist4content>
+  <playlist4issues><![CDATA[
+      package spotify.playlist4.proto;
+
+      option optimize_for = SPEED;
+
+      option java_package = "com.spotify.playlist4.proto";
+
+      message ClientIssue {
+        enum Level {
+          LEVEL_UNKNOWN = 0;
+          LEVEL_DEBUG = 1;
+          LEVEL_INFO = 2;
+          LEVEL_NOTICE = 3;
+          LEVEL_WARNING = 4;
+          LEVEL_ERROR = 5;
+        }
+        enum Code {
+          CODE_UNKNOWN = 0;
+          CODE_INDEX_OUT_OF_BOUNDS = 1;
+          CODE_VERSION_MISMATCH = 2;
+          CODE_CACHED_CHANGE = 3;
+          CODE_OFFLINE_CHANGE = 4;
+          CODE_CONCURRENT_CHANGE = 5;
+        }
+        optional Level level = 1;
+        optional Code code = 2;
+        optional int32 repeatCount = 3;
+      }
+
+      message ClientResolveAction {
+        enum Code {
+          CODE_UNKNOWN = 0;
+          CODE_NO_ACTION = 1;
+          CODE_RETRY = 2;
+          CODE_RELOAD = 3;
+          CODE_DISCARD_LOCAL_CHANGES = 4;
+          CODE_SEND_DUMP = 5;
+          CODE_DISPLAY_ERROR_MESSAGE = 6;
+        }
+        enum Initiator {
+          INITIATOR_UNKNOWN = 0;
+          INITIATOR_SERVER = 1;
+          INITIATOR_CLIENT = 2;
+        }
+        optional Code code = 1;
+        optional Initiator initiator = 2;
+      }
+    ]]>
+  </playlist4issues>
+  <playlist4meta><![CDATA[
+      package spotify.playlist4.proto;
+
+      option optimize_for = SPEED;
+      option java_package = "com.spotify.playlist4.proto";
+
+      message ListChecksum {
+        required int32 version = 1;
+        optional bytes sha1 = 4;
+      }
+      message DownloadFormat {
+        enum Codec {
+          CODEC_UNKNOWN = 0;
+          OGG_VORBIS = 1;
+          FLAC = 2;
+          MPEG_1_LAYER_3 = 3;
+        }
+        required Codec codec = 1;
+      }
+      enum ListAttributeKind {
+        LIST_UNKNOWN = 0;
+        LIST_NAME = 1;
+        LIST_DESCRIPTION = 2;
+        LIST_PICTURE = 3;
+        LIST_COLLABORATIVE = 4;
+        LIST_PL3_VERSION = 5;
+        LIST_DELETED_BY_OWNER = 6;
+        LIST_RESTRICTED_COLLABORATIVE = 7;
+      }
+      message ListAttributes {
+        optional string name = 1;
+        optional string description = 2;
+        optional bytes picture = 3;
+        optional bool collaborative = 4;
+        optional string pl3_version = 5;
+        optional bool deleted_by_owner = 6;
+        optional bool restricted_collaborative = 7;
+      }
+      enum ItemAttributeKind {
+        ITEM_UNKNOWN = 0;
+        ITEM_ADDED_BY = 1;
+        ITEM_TIMESTAMP = 2;
+        ITEM_MESSAGE = 3;
+        ITEM_SEEN = 4;
+        ITEM_DOWNLOAD_COUNT = 5;
+        ITEM_DOWNLOAD_FORMAT = 6;
+        ITEM_SEVENDIGITAL_ID = 7;
+        ITEM_SEVENDIGITAL_LEFT = 8;
+        ITEM_SEEN_AT = 9;
+      }
+      message ItemAttributes {
+        optional string added_by = 1;
+        optional string message = 3;
+        optional bool seen = 4;
+        optional DownloadFormat download_format = 6;
+        optional string sevendigital_id = 7;
+      }
+      message StringAttribute {
+        required string key = 1;
+        required string value = 2;
+      }
+      message StringAttributes {
+        repeated StringAttribute attribute = 1;
+      }
+    ]]>
+  </playlist4meta>
+  <playlist4ops><![CDATA[
+      package spotify.playlist4.proto;
+
+      option optimize_for = SPEED;
+      option java_package = "com.spotify.playlist4.proto";
+
+      message Add {
+        optional int32 fromIndex = 1;
+        repeated Item items = 2;
+        optional ListChecksum list_checksum = 3;
+        optional bool addLast = 4;
+        optional bool addFirst = 5;
+      }
+      message Rem {
+        optional int32 fromIndex = 1;
+        optional int32 length = 2;
+        repeated Item items = 3;
+        optional ListChecksum list_checksum = 4;
+        optional ListChecksum items_checksum = 5;
+        optional ListChecksum uris_checksum = 6;
+        optional bool itemsAsKey = 7;
+      }
+      message Mov {
+        required int32 fromIndex = 1;
+        required int32 length = 2;
+        required int32 toIndex = 3;
+        optional ListChecksum list_checksum = 4;
+        optional ListChecksum items_checksum = 5;
+        optional ListChecksum uris_checksum = 6;
+      }
+      message ItemAttributesPartialState {
+        required ItemAttributes values = 1;
+        repeated ItemAttributeKind no_value = 2;
+      }
+      message ListAttributesPartialState {
+        required ListAttributes values = 1;
+        repeated ListAttributeKind no_value = 2;
+      }
+      message UpdateItemAttributes {
+        required int32 index = 1;
+        required ItemAttributesPartialState new_attributes = 2;
+        optional ItemAttributesPartialState old_attributes = 3;
+        optional ListChecksum list_checksum = 4;
+        optional ListChecksum old_attributes_checksum = 5;
+      }
+      message UpdateListAttributes {
+        required ListAttributesPartialState new_attributes = 1;
+        optional ListAttributesPartialState old_attributes = 2;
+        optional ListChecksum list_checksum = 3;
+        optional ListChecksum old_attributes_checksum = 4;
+      }
+      message Op {
+        enum Kind {
+          KIND_UNKNOWN = 0;
+          ADD = 2;
+          REM = 3;
+          MOV = 4;
+          UPDATE_ITEM_ATTRIBUTES = 5;
+          UPDATE_LIST_ATTRIBUTES = 6;
+        };
+        required Kind kind = 1;
+        optional Add add = 2;
+        optional Rem rem = 3;
+        optional Mov mov = 4;
+        optional UpdateItemAttributes update_item_attributes = 5;
+        optional UpdateListAttributes update_list_attributes = 6;
+      }
+
+      message OpList {
+        repeated Op ops = 1;
+      }
+    ]]>
+  </playlist4ops>
+  <playlist4service><![CDATA[
+      package spotify.playlist4.proto;
+      option optimize_for = SPEED;
+
+      message RequestContext {
+        optional bool administrative = 2;
+        optional bool migration = 4;
+        optional string tag = 7;
+        optional bool useStarredView = 8;
+        optional bool syncWithPublished = 9;
+      }
+      message GetCurrentRevisionArgs {
+        optional bytes uri = 1;
+        optional RequestContext context = 2;
+      }
+      message GetChangesInSequenceRangeArgs {
+        optional bytes uri = 1;
+        optional RequestContext context = 2;
+        optional int32 fromSequenceNumber = 3;
+        optional int32 toSequenceNumber = 4;
+      }
+      message GetChangesInSequenceRangeMatchingPl3VersionArgs {
+        optional bytes uri = 1;
+        optional RequestContext context = 2;
+        optional int32 fromSequenceNumber = 3;
+        optional int32 toSequenceNumber = 4;
+        optional string pl3Version = 5;
+      }
+      message GetChangesInSequenceRangeReturn {
+        repeated RevisionTaggedChangeSet result = 1;
+      }
+      message ObliterateListArgs {
+        optional bytes uri = 1;
+        optional RequestContext context = 2;
+      }
+      message UpdatePublishedArgs {
+        optional bytes publishedUri = 1;
+        optional RequestContext context = 2;
+        optional bytes uri = 3;
+        optional bool isPublished = 4;
+      }
+      message SynchronizeArgs {
+        optional bytes uri = 1;
+        optional RequestContext context = 2;
+        optional ListContentSelection selection = 3;
+        optional ListChanges changes = 4;
+      }
+      message GetSnapshotAtRevisionArgs {
+        optional bytes uri = 1;
+        optional RequestContext context = 2;
+        optional bytes revision = 3;
+      }
+      message SubscribeRequest {
+        repeated bytes uris = 1;
+      }
+      message UnsubscribeRequest {
+        repeated bytes uris = 1;
+      }
+      enum Playlist4InboxErrorKind {
+        INBOX_NOT_ALLOWED = 2;
+        INBOX_INVALID_USER = 3;
+        INBOX_INVALID_URI = 4;
+        INBOX_LIST_TOO_LONG = 5;
+      }
+      message Playlist4ServiceException {
+        optional string why = 1;
+        optional string symbol = 2;
+        optional bool permanent = 3;
+        optional string serviceErrorClass = 4;
+        optional Playlist4InboxErrorKind inboxErrorKind = 5;
+      }
+      message SynchronizeReturn {
+        optional SelectedListContent result = 1;
+        optional Playlist4ServiceException exception = 4;
+      }
+      enum Playlist4ServiceMethodKind {
+        METHOD_UNKNOWN = 0;
+        METHOD_GET_CURRENT_REVISION = 2;
+        METHOD_GET_CHANGES_IN_SEQUENCE_RANGE = 3;
+        METHOD_OBLITERATE_LIST = 4;
+        METHOD_SYNCHRONIZE = 5;
+        METHOD_UPDATE_PUBLISHED = 6;
+        METHOD_GET_CHANGES_IN_SEQUENCE_RANGE_MATCHING_PL3_VERSION = 7;
+        METHOD_GET_SNAPSHOT_AT_REVISION = 8;
+      }
+      message Playlist4ServiceCall {
+        optional Playlist4ServiceMethodKind kind = 1;
+        optional GetCurrentRevisionArgs getCurrentRevisionArgs = 2;
+        optional GetChangesInSequenceRangeArgs getChangesInSequenceRangeArgs = 3;
+        optional ObliterateListArgs obliterateListArgs = 4;
+        optional SynchronizeArgs synchronizeArgs = 5;
+        optional UpdatePublishedArgs updatePublishedArgs = 6;
+        optional GetChangesInSequenceRangeMatchingPl3VersionArgs getChangesInSequenceRangeMatchingPl3VersionArgs = 7;
+        optional GetSnapshotAtRevisionArgs getSnapshotAtRevisionArgs = 8;
+      }
+      message Playlist4ServiceReturn {
+        optional Playlist4ServiceMethodKind kind = 1;
+        optional Playlist4ServiceException exception = 2;
+        optional bytes getCurrentRevisionReturn = 3;
+        optional GetChangesInSequenceRangeReturn getChangesInSequenceRangeReturn = 4;
+        optional bool obliterateListReturn = 5;
+        optional SynchronizeReturn synchronizeReturn = 6;
+        optional bool updatePublishedReturn = 7;
+        optional GetChangesInSequenceRangeReturn getChangesInSequenceRangeMatchingPl3VersionReturn = 8;
+        optional RevisionTaggedListSnapshot getSnapshotAtRevisionReturn = 9;
+      }
+      message CreateListReply {
+        required bytes uri = 1;
+        optional bytes revision = 2;
+      }
+    ]]>
+  </playlist4service>
+  <spirc><![CDATA[
+    package spotify.spirc.proto;
+
+    enum MessageType {
+      kMessageTypeHello = 1;
+      kMessageTypeGoodbye = 2;
+      kMessageTypeNotify = 10;
+      kMessageTypeLoad = 20;
+      kMessageTypePlay = 21;
+      kMessageTypePause = 22;
+      kMessageTypePlayPause = 23;
+      kMessageTypeSeek = 24;
+      kMessageTypePrev = 25;
+      kMessageTypeNext = 26;
+      kMessageTypeVolume = 27;
+      kMessageTypeShuffle = 28;
+      kMessageTypeRepeat = 29;
+      kMessageTypeQueue = 30;
+      kMessageTypeVolumeDown = 31;
+      kMessageTypeVolumeUp = 32;
+    }
+
+    enum PlayStatus {
+      kPlayStatusStop = 0;
+      kPlayStatusPlay = 1;
+      kPlayStatusPause = 2;
+      kPlayStatusLoading = 3;
+      kPlayStatusError = 4;
+    }
+
+    message Goodbye {
+      optional string reason = 1;
+    }
+
+    message State {
+      optional string trackURI = 1;
+      optional string contextURI = 2;
+      optional uint32 index = 3;
+      optional uint32 position = 4;
+      optional PlayStatus status = 5;
+      optional uint32 errorCode = 6;
+      optional uint32 volume = 8;
+      optional uint32 duration = 9;
+
+      repeated string history = 10;
+      repeated string queued = 11;
+      repeated string future = 12;
+
+      optional bool shuffle = 13;
+      optional bool repeat = 14;
+
+      optional uint32 volumeCaps = 15;
+    }
+
+    message Frame {
+      optional uint32 version = 1;
+      optional string ident = 2;
+      optional string name = 3;
+      optional uint32 msgid = 4;
+
+      optional MessageType type = 5;
+
+      optional Goodbye goodbye = 11;
+      optional State state = 12;
+      optional uint32 position = 13;
+      optional uint32 volume = 14;
+      repeated string toQueue = 15;
+    }
+
+    message VoidReply {
+    }
+    ]]>
+  </spirc>
+  <pubsub><![CDATA[
+      package spotify.hermes.pubsub.proto;
+
+      message Subscription {
+        optional string uri = 1;
+        optional int32 expiry = 2;
+        optional int32 status_code = 3;
+      }
+    ]]>
+  </pubsub>
+  <popcount><![CDATA[
+    package spotify.popcount2.proto;
+
+    message PopcountRequest {
+    }
+
+    message PopcountResult {
+      optional sint64 count = 1;
+      optional bool truncated = 2;
+      repeated string user = 3;
+      repeated sint64 subscriptionTimestamps = 4;
+      repeated sint64 insertionTimestamps = 5;
+    }
+    ]]>
+  </popcount>
+  <presence><![CDATA[
+      package spotify.presence.proto;
+
+      message PlaylistPublishedState {
+        optional string uri = 1;
+        optional int64 timestamp = 2;
+      }
+
+      message PlaylistTrackAddedState {
+        optional string playlist_uri = 1;
+        optional string track_uri = 2;
+        optional int64 timestamp = 3;
+      }
+
+      message TrackFinishedPlayingState {
+        optional string uri = 1;
+        optional string context_uri = 2;
+        optional int64 timestamp = 3;
+        optional string referrer_uri = 4;
+
+      }
+
+      message FavoriteAppAddedState {
+        optional string app_uri = 1;
+        optional int64 timestamp = 2;
+      }
+
+      message TrackStartedPlayingState {
+        optional string uri = 1;
+        optional string context_uri = 2;
+        optional int64 timestamp = 3;
+        optional string referrer_uri = 4;
+      }
+
+      message UriSharedState {
+        optional string uri = 1;
+        optional string message = 2 [default=""];
+        optional int64 timestamp = 3;
+      }
+
+      message ArtistFollowedState {
+        optional string uri = 1;
+        optional string artist_name = 2 [default=""];
+        optional string artist_cover_uri = 3 [default=""];
+        optional int64 timestamp = 4;
+      }
+
+      message DeviceInformation {
+        optional string os = 1;
+        optional string type = 2;
+      }
+
+      message GenericPresenceState {
+        optional int32 type = 1;
+        optional int64 timestamp = 2;
+        optional string item_uri = 3;
+        optional string item_name = 4;
+        optional string item_image = 5;
+        optional string context_uri = 6;
+        optional string context_name = 7;
+        optional string context_image = 8;
+        optional string referrer_uri = 9;
+        optional string referrer_name = 10;
+        optional string referrer_image = 11;
+        optional string message = 12;
+        optional DeviceInformation device_information = 13;
+      }
+
+      message State {
+        optional int64 timestamp = 1;
+
+        enum Type {
+          PLAYLIST_PUBLISHED = 1;
+          PLAYLIST_TRACK_ADDED = 2;
+          TRACK_FINISHED_PLAYING = 3;
+          FAVORITE_APP_ADDED = 4;
+          TRACK_STARTED_PLAYING = 5;
+          URI_SHARED = 6;
+          ARTIST_FOLLOWED = 7;
+          GENERIC = 11;
+        }
+
+        optional Type type = 2;
+        optional string uri = 3;
+        optional PlaylistPublishedState playlist_published = 4;
+        optional PlaylistTrackAddedState playlist_track_added = 5;
+        optional TrackFinishedPlayingState track_finished_playing = 6;
+        optional FavoriteAppAddedState favorite_app_added = 7;
+        optional TrackStartedPlayingState track_started_playing = 8;
+        optional UriSharedState uri_shared = 9;
+        optional ArtistFollowedState artist_followed = 10;
+        optional GenericPresenceState generic = 11;
+      }
+
+      message StateList {
+        repeated State states = 1;
+      }
+
+    ]]>
+  </presence>
+  <socialgraph><![CDATA[
+     package spotify.socialgraph.proto;
+
+     message CountReply {
+       repeated int32 counts = 1;
+     }
+
+     message UserListRequest {
+       optional string last_result = 1;
+       optional int32 count = 2;
+       optional bool include_length = 3;
+     }
+
+     message UserListReply {
+       repeated User users = 1;
+       optional int32 length = 2;
+     }
+
+     message User {
+       optional string username = 1;
+       optional int32 subscriber_count = 2;
+       optional int32 subscription_count = 3;
+     }
+
+     message ArtistListReply {
+       repeated Artist artists = 1;
+     }
+
+     message Artist {
+       optional string artistid = 1;
+       optional int32 subscriber_count = 2;
+     }
+
+     message StringListRequest {
+       repeated string args = 1;
+     }
+
+     message StringListReply {
+       repeated string reply = 1;
+     }
+
+    message TopPlaylistsRequest {
+      optional string username = 1;
+      optional int32 count = 2;
+    }
+
+    message TopPlaylistsReply {
+      repeated string uris = 1;
+    }
+  ]]>
+  </socialgraph>
+  <mergedprofile><![CDATA[
+      message MergedProfileRequest {
+      }
+
+      message MergedProfileReply {
+        optional string username = 1;
+        optional string artistid = 2;
+      }
+    ]]>
+  </mergedprofile>
+</services>
