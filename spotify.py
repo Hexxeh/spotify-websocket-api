@@ -50,7 +50,7 @@ class SpotifyClient(WebSocketClient):
 class SpotifyUtil():
 	@staticmethod
 	def gid2id(gid):
-		return binascii.hexlify(gid)
+		return binascii.hexlify(gid).rjust(32, "0")
 
 	@staticmethod
 	def id2uri(uritype, v):
@@ -60,7 +60,7 @@ class SpotifyUtil():
 		    res = [v % 62] + res
 		    v = v / 62
 		id = ''.join([base62[i] for i in res])
-		return "spotify:"+uritype+":"+id
+		return ("spotify:"+uritype+":"+id).rjust(22, "0")
 
 	@staticmethod
 	def uri2id(uri):
@@ -68,7 +68,7 @@ class SpotifyUtil():
 		s = uri.split(":")[2]
 		for c in s:
 		    v = v * 62 + base62.index(c)
-		return hex(v)[2:-1]
+		return hex(v)[2:-1].rjust(32, "0")
 
 	@staticmethod
 	def get_uri_type(uri):	
@@ -108,6 +108,7 @@ class SpotifyUtil():
 		obj = playlist4changes_pb2.ListDump()
 		res = base64.decodestring(resp[1])
 		obj.ParseFromString(res)
+		return obj
 
 class SpotifyAPI():
 	def __init__(self, login_callback_func = None):
@@ -156,10 +157,10 @@ class SpotifyAPI():
 		self.username = resp["user"]
 		self.country = resp["country"]
 		self.account_type = resp["catalogue"]
+		self.login_callback(self)
 
 	def logged_in(self, sp, resp):
 		self.user_info_request(self.populate_userdata_callback)
-		self.login_callback(self, resp)
 
 	def login(self):
 		Logging.notice("Logging in")
@@ -421,17 +422,18 @@ def playlist_callback(sp, result):
 		if SpotifyUtil.get_uri_type(track.uri) != "track":
 			continue
 		uris.append(track.uri)
+	print len(uris)
 	
-	sp.metadata_request(uris, track_metadata_callback)
+	sp.metadata_request(uris, multi_track_metadata_callback)
 
 def userdata_callback(sp, result):
 	print result["user"]
 
-def login_callback(sp, result):
+def login_callback(sp):
 	#sp.user_info_request(userdata_callback)
-	sp.metadata_request("spotify:album:2mduHypWQwgRXMQ9kEFssu", album_metadata_callback)
-	#sp.metadata_request("spotify:track:5DRLxox45OZGJycLUhJ4h7", track_metadata_callback)
-	#sp.playlist_request("2ITsmcN6qU9NbotiH02Skn", 0, 200, playlist_callback)
+	sp.metadata_request("spotify:album:3OmHoatMS34vM7ZKb4WCY3", album_metadata_callback)
+	#sp.metadata_request("spotify:track:1QTmt4xLgL91PiTLMldX7n", track_metadata_callback)
+	#sp.playlist_request("5iQryPukn5qZJ8Dh6Ul3mo", 0, 200, playlist_callback)
 
 sp = SpotifyAPI(login_callback)
 sp.auth()
