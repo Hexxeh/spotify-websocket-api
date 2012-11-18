@@ -231,7 +231,6 @@ class SpotifyAPI():
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = "GET"
 		mercury_request.uri = "hm://playlist/user/"+playlist[2]+"/playlist/" + playlist[4] + "?from=" + str(fromnum) + "&length=" + str(num)
-		print mercury_request.uri
 		req = base64.encodestring(mercury_request.SerializeToString())
 		args = [0, req]
 		self.send_command("sp/hm_b64", args, [self.playlist_response, callback])
