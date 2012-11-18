@@ -84,7 +84,8 @@ class SpotifyUtil():
 			mget_reply.ParseFromString(base64.decodestring(resp[1]))
 			items = []
 			for reply in mget_reply.reply:
-				items.append(SpotifyUtil.parse_metadata_item(reply.content_type, reply.body))
+				item = SpotifyUtil.parse_metadata_item(reply.content_type, reply.body)
+				items.append(item)
 			return items
 		else:
 			return SpotifyUtil.parse_metadata_item(header.status_message, base64.decodestring(resp[1]))
@@ -102,6 +103,12 @@ class SpotifyUtil():
 		obj.ParseFromString(body)
 		return obj
 
+	@staticmethod
+	def parse_playlist(resp):
+		obj = playlist4changes_pb2.ListDump()
+		res = base64.decodestring(resp[1])
+		obj.ParseFromString(res)
+
 class SpotifyAPI():
 	def __init__(self, login_callback_func = None):
 		self.auth_server = "play.spotify.com"
@@ -117,13 +124,6 @@ class SpotifyAPI():
 		self.seq = 0
 		self.cmd_callbacks = {}
 		self.login_callback = login_callback_func
-		self.currentLid = ""
-		self.currentUri = ""
-		self.currentMS = 0
-		self.currentUserid = "121278260"
-		self.currentPlaylistId = "3U679q1vMPEJhFwrqP5RFw"
-		self.currentTracks = []
-		self.currentTrackNum = 0
 
 	def auth(self):
 		if self.settings != None:
@@ -209,7 +209,7 @@ class SpotifyAPI():
 	def playlist_request(self, playlist_id, fromnum, num, callback):
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = "GET"
-		mercury_request.uri = "hm://playlist/user/121278260/playlist/" + playlist_id + "?from=" + `fromnum` + "&length=" + `num`
+		mercury_request.uri = "hm://playlist/user/"+self.username+"/playlist/" + playlist_id + "?from=" + str(fromnum) + "&length=" + str(num)
 		req = base64.encodestring(mercury_request.SerializeToString())
 		args = [0, req]
 		self.send_command("sp/hm_b64", args, callback)
@@ -251,11 +251,11 @@ class SpotifyAPI():
 
 	def send_string(self, msg):
 		msg_enc = json.dumps(msg, separators=(',',':'))
-		#Logging.debug("sent " + msg_enc)
+		Logging.debug("sent " + msg_enc)
 		self.ws.send(msg_enc)
 
 	def recv_packet(self, msg):
-		#Logging.debug("recv " + str(msg))
+		Logging.debug("recv " + str(msg))
 		packet = json.loads(str(msg))
 		if "error" in packet:
 			self.handle_error(packet)
@@ -301,10 +301,20 @@ class SpotifyAPI():
 			429: "too many requests",
 		}
 
-		if minor == 0:
-			Logging.error(major_err[major])
+		if major in major_err:
+			major_str = major_err[major]
 		else:
-			Logging.error(major_err[major] + " - " + minor_err[minor])
+			major_str = "unknown (" + str(major) + ")"
+
+		if minor in minor_err:
+			minor_str = minor_err[minor]
+		else:
+			minor_str = "unknown (" + str(minor) + ")"
+
+		if minor == 0:
+			Logging.error(major_str)
+		else:
+			Logging.error(major_str + " - " + minor_str)
 
 	def connect(self):
 		if self.settings == None:
@@ -324,9 +334,8 @@ class SpotifyAPI():
 
 
 def track_uri_callback(sp, result):
-	#print `result`
-	errorcode = result["type"]
-	if errorcode == 3:
+	print str(result)
+	if "type" in result and result["type"] == 3:
 		Logging.notice("Track is not available. Skipping.")
 		track_end_callback(sp, None)
 		return
@@ -335,6 +344,7 @@ def track_uri_callback(sp, result):
 		print("LID")
 		sp.track_end(sp.currentLid, 0, 97, sp.currentUri, sp.currentUserid, sp.currentPlaylistId, track_end_callback)
 
+	print result
 	lid = result["lid"]
 	#print "URL: " +result["uri"]
 	#print "LID: " + lid
@@ -403,25 +413,11 @@ def album_metadata_callback(sp, result):
 	sp.metadata_request(uris, multi_track_metadata_callback)
 
 def playlist_callback(sp, result):
-	obj = playlist4changes_pb2.ListDump()
-	res = base64.decodestring(result[1])
-	obj.ParseFromString(res)
+	playlist = SpotifyUtil.parse_playlist(result)
 
-	"""playlistname = obj.items[0].uri
-
-	#We can't use protobuf to parse the playlist URIs (yet) so we need to regex it (I'M SORRY HEXXEH)
-	tracks = playlist_track_listing(sp, res)
-	print "Playlist name: " + playlistname
-	print "There are " + `len(tracks)` + " track in this playlist"
-	sp.currentTracks = tracks
-	sp.currentUri = tracks[0];
-	id = SpotifyUtil.uri2id(tracks[0])
-	sp.track_uri(id, "mp3160", track_uri_callback)"""
-
-
-	print obj.attributes.name+"\n"
+	print playlist.attributes.name+"\n"
 	uris = []
-	for track in obj.contents.items:
+	for track in playlist.contents.items:
 		if SpotifyUtil.get_uri_type(track.uri) != "track":
 			continue
 		uris.append(track.uri)
