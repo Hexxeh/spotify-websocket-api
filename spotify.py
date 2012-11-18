@@ -42,7 +42,7 @@ class SpotifyClient(WebSocketClient):
 		self.api_object.login()
 
 	def closed(self, code, reason=None):
-		Logging.error("Connection closed, code %d reason %s" % (code, reason))
+		Logging.debug("Connection closed, code %d reason %s" % (code, reason))
 
 	def received_message(self, m):
 		self.api_object.recv_packet(m)
@@ -64,18 +64,29 @@ class SpotifyUtil():
 
 	@staticmethod
 	def uri2id(uri):
+		parts = uri.split(":")
+		if len(parts) > 3 and parts[3] == "playlist":
+			s = parts[4]
+		else:
+			s = parts[2]
+
 		v = 0
-		s = uri.split(":")[2]
 		for c in s:
 		    v = v * 62 + base62.index(c)
 		return hex(v)[2:-1].rjust(32, "0")
+
+	@staticmethod
+	def gid2uri(uritype, gid):
+		id = SpotifyUtil.gid2id(gid)
+		uri = SpotifyUtil.id2uri(uritype, id)
+		return uri
 
 	@staticmethod
 	def get_uri_type(uri):	
 		return uri.split(":")[1]
 
 	@staticmethod
-	def metadata_resp_to_obj(resp):
+	def parse_metadata(resp):
 		header = mercury_pb2.MercuryReply()
 		header.ParseFromString(base64.decodestring(resp[0]))
 
@@ -205,20 +216,34 @@ class SpotifyAPI():
 			req = base64.encodestring(mercury_requests.SerializeToString())
 			args.extend([header_str, req])
 
-		self.send_command("sp/hm_b64", args, callback)
+		self.send_command("sp/hm_b64", args, [self.metadata_response, callback])
 
-	def playlist_request(self, playlist_id, fromnum, num, callback):
+	def metadata_response(self, sp, resp, callback_data):
+		obj = SpotifyUtil.parse_metadata(resp)
+		callback_data[0](self, obj)
+
+	def playlist_request(self, uri, fromnum, num, callback):
+		if num > 100:
+			Logging.error("You may only request up to 100 tracks at once")
+			return False
+
+		playlist = uri.split(":")
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = "GET"
-		mercury_request.uri = "hm://playlist/user/"+self.username+"/playlist/" + playlist_id + "?from=" + str(fromnum) + "&length=" + str(num)
+		mercury_request.uri = "hm://playlist/user/"+playlist[2]+"/playlist/" + playlist[4] + "?from=" + str(fromnum) + "&length=" + str(num)
+		print mercury_request.uri
 		req = base64.encodestring(mercury_request.SerializeToString())
 		args = [0, req]
-		self.send_command("sp/hm_b64", args, callback)
+		self.send_command("sp/hm_b64", args, [self.playlist_response, callback])
+
+	def playlist_response(self, sp, resp, callback_data):
+		obj = SpotifyUtil.parse_playlist(resp)
+		callback_data[0](self, obj)
 
 	def track_progress(self, lid, ms, randnum, userid, playlist, trackuri, callback):
 		args = [lid, "playlist", "clickrow", ms, randnum,
-		 "spotify:user:" + `userid` + ":playlist: " +`playlist`,
-		 trackuri, "spotify:app:playlist:" + `playlist`, "0.1.0", "com.spotify"]
+		 "spotify:user:" + userid + ":playlist: " + playlist,
+		 trackuri, "spotify:app:playlist:" + playlist, "0.1.0", "com.spotify"]
 		self.send_command("sp/track_progress", args, callback)
 
 
@@ -229,8 +254,8 @@ class SpotifyAPI():
 
 	def track_end(self, lid, XNum, progressnum, uri, userid, playlistid, callback):
 		args = [lid, XNum, XNum, 0, 0, 0, 0, progressnum, uri,
-		 "spotify:user:" + `userid` + ":playlist:" + `playlistid`, "playlist", "playlist", "clickrow", "clickrow",
-		 "spotify:app:playlist:" + `userid` + ":" + `playlistid`, "0.1.0", "com.spotify", XNum]
+		 "spotify:user:" + userid + ":playlist:" + playlistid, "playlist", "playlist", "clickrow", "clickrow",
+         "spotify:app:playlist:" + userid + ":" + playlistid, "0.1.0", "com.spotify", XNum]
 		self.send_command("sp/track_end", args, callback)
 
 
@@ -266,10 +291,16 @@ class SpotifyAPI():
 		elif "id" in packet:
 			pid = packet["id"]
 			if pid in self.cmd_callbacks:
-				self.cmd_callbacks[pid](self, packet["result"])
+				callback = self.cmd_callbacks[pid]
+
+				if type(callback) == list:
+					callback[0](self, packet["result"], callback[1:])
+				else:
+					callback(self, packet["result"])
+
 				self.cmd_callbacks.pop(pid)
 			else:
-				Logging.notice("Unhandled command response with id " + str(pid))
+				Logging.debug("Unhandled command response with id " + str(pid))
 
 	def work_callback(self, sp, resp):
 		Logging.debug("Got ack for message reply")
@@ -319,8 +350,7 @@ class SpotifyAPI():
 
 	def connect(self):
 		if self.settings == None:
-			Logging.error("You must authenticate before connecting")
-			return False
+			self.auth()
 
 		Logging.notice("Connecting to "+self.settings["aps"]["ws"][0])
 		
@@ -333,108 +363,6 @@ class SpotifyAPI():
 		except KeyboardInterrupt:
 			self.ws.close()
 
+	def disconnect(self):
+		self.ws.close()
 
-def track_uri_callback(sp, result):
-	print str(result)
-	if "type" in result and result["type"] == 3:
-		Logging.notice("Track is not available. Skipping.")
-		track_end_callback(sp, None)
-		return
-
-	if sp.currentLid != "":
-		print("LID")
-		sp.track_end(sp.currentLid, 0, 97, sp.currentUri, sp.currentUserid, sp.currentPlaylistId, track_end_callback)
-
-	print result
-	lid = result["lid"]
-	#print "URL: " +result["uri"]
-	#print "LID: " + lid
-	Logging.notice("Got URL successfully")
-	sp.currentLid = lid
-	sp.track_event(lid, 3, 0, track_event_callback)
-
-def track_event_callback(sp, result):
-	Logging.notice("Track event 'successful'! Calling sp/track_progress." + result.__str__())
-	sp.track_progress(sp.currentLid, 500, 97, sp.currentUserid, sp.currentPlaylistId, sp.currentUri, track_progress_callback)
-
-def track_end_callback(sp, result):
-	#time.sleep(5)
-	Logging.notice("Track ended.")
-	sp.currentTrackNum += 1
-	uri = sp.currentTracks[sp.currentTrackNum]
-	sp.currentUri = uri
-	print "Current URI: " + uri
-	id = SpotifyUtil.uri2id(uri)
-	sp.send_command("sp/echo", ["h"])
-	sp.send_command("sp/log", [30, 1, "heartbeat", 77, 77, 2, False])
-	sp.track_uri(id, "mp3160", track_uri_callback)
-
-
-def track_progress_callback(sp, result):
-	ms = 500
-	if sp.currentMS == 0:
-		ms = 15000
-	elif sp.currentMS == 1:
-		ms = 30000
-	elif sp.currentMS == 2:
-		ms = 45000
-	sp.currentMS += 1
-	if sp.currentMS == 2:
-		time.sleep(1)
-		sp.currentMS = 0
-		Logging.notice("Song ended, calling sp/track_event")
-		Logging.notice("Current URI: " + sp.currentUri)
-		sp.track_event(sp.currentLid, 4, 45000, track_end_callback)
-		#It seems track_end is only called AFTER track_uri is called for the new song, so it's irrelevant here.
-		#sp.track_end(sp.currentLid, 0, 97, sp.currentUri, sp.currentUserid, sp.currentPlaylistId, track_end_callback)
-	else:
-		Logging.notice("Song is " + `ms` + "ms in.")
-		sp.track_progress(sp.currentLid, ms, 97, sp.currentUserid, sp.currentPlaylistId, sp.currentUri, track_progress_callback)
-
-
-
-
-
-def multi_track_metadata_callback(sp, result):
-	tracks = SpotifyUtil.metadata_resp_to_obj(result)
-	for track in tracks:
-		print track.name
-
-def track_metadata_callback(sp, result):
-	track = SpotifyUtil.metadata_resp_to_obj(result)
-	print track.name
-
-def album_metadata_callback(sp, result):
-	album = SpotifyUtil.metadata_resp_to_obj(result)
-	print album.name+"\n"
-	uris = []
-	for track in album.disc[0].track:
-		uris.append(SpotifyUtil.id2uri("track", SpotifyUtil.gid2id(track.gid)))
-		#sp.track_uri(SpotifyUtil.gid2id(track.gid), "mp3160", track_uri_callback)
-	sp.metadata_request(uris, multi_track_metadata_callback)
-
-def playlist_callback(sp, result):
-	playlist = SpotifyUtil.parse_playlist(result)
-
-	print playlist.attributes.name+"\n"
-	uris = []
-	for track in playlist.contents.items:
-		if SpotifyUtil.get_uri_type(track.uri) != "track":
-			continue
-		uris.append(track.uri)
-	print len(uris)
-	
-	sp.metadata_request(uris, multi_track_metadata_callback)
-
-def userdata_callback(sp, result):
-	print result["user"]
-
-def login_callback(sp):
-	#sp.user_info_request(userdata_callback)
-	sp.metadata_request("spotify:album:3OmHoatMS34vM7ZKb4WCY3", album_metadata_callback)
-	#sp.metadata_request("spotify:track:1QTmt4xLgL91PiTLMldX7n", track_metadata_callback)
-	#sp.playlist_request("5iQryPukn5qZJ8Dh6Ul3mo", 0, 200, playlist_callback)
-
-sp = SpotifyAPI(login_callback)
-sp.auth()
-sp.connect()
