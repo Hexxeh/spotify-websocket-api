@@ -4,7 +4,10 @@ import base64, binascii, httplib, json, pprint, re, string, sys, time, urllib
 from ws4py.client.threadedclient import WebSocketClient
 
 sys.path.append("proto")
-import mercury_pb2, metadata_pb2, playlist4content_pb2, playlist4meta_pb2
+import mercury_pb2, metadata_pb2
+import playlist4changes_pb2, playlist4content_pb2
+import playlist4issues_pb2, playlist4meta_pb2
+import playlist4ops_pb2
 
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -64,8 +67,12 @@ class SpotifyUtil():
 		v = 0
 		s = uri.split(":")[2]
 		for c in s:
-		    v = v *62 + base62.index(c)
+		    v = v * 62 + base62.index(c)
 		return hex(v)[2:-1]
+
+	@staticmethod
+	def get_uri_type(uri):	
+		return uri.split(":")[1]
 
 	@staticmethod
 	def metadata_resp_to_obj(metadata_type, resp):
@@ -125,7 +132,7 @@ class SpotifyAPI():
 		rx = re.compile("Spotify.Web.App.initialize\((.*), null\);")
 		r = rx.search(data)
 
-		if len(r.groups()) < 1:
+		if not r or len(r.groups()) < 1:
 			Logging.error("There was a problem authenticating, no auth JSON found")
 			return False
 
@@ -213,7 +220,7 @@ class SpotifyAPI():
 		Logging.debug("recv " + str(msg))
 		packet = json.loads(str(msg))
 		if "error" in packet:
-			self.handle_error(packet["error"])
+			self.handle_error(packet)
 			return
 		elif "message" in packet:
 			self.handle_message(packet["message"])
@@ -237,6 +244,10 @@ class SpotifyAPI():
 		Logging.error(str(err))
 
 	def connect(self):
+		if self.settings == None:
+			Logging.error("You must authenticate before connecting")
+			return False
+
 		Logging.notice("Connecting to "+self.settings["aps"]["ws"][0])
 		
 		try:
@@ -311,6 +322,7 @@ def track_progress_callback(sp, result):
 
 
 def track_metadata_callback(sp, result):
+	print result
 	track = SpotifyUtil.metadata_resp_to_obj("track", result)
 	print track.name
 
@@ -321,18 +333,12 @@ def album_metadata_callback(sp, result):
 		sp.metadata_request("track", SpotifyUtil.gid2id(track.gid), track_metadata_callback)
 		#sp.track_uri(SpotifyUtil.gid2id(track.gid), "mp3160", track_uri_callback)
 
-def playlist_track_listing(sp, playlist_string):
-	regex = "\\$(spotify:track:.+)"
-	ret = re.findall(regex, playlist_string)
-	return ret
-
 def playlist_callback(sp, result):
-	#We parse it into this because it seems to be able to get the
-	#playlist NAME from the result.
-	obj = playlist4content_pb2.ListItems()
+	obj = playlist4changes_pb2.ListDump()
 	res = base64.decodestring(result[1])
 	obj.ParseFromString(res)
-	playlistname = obj.items[0].uri
+
+	"""playlistname = obj.items[0].uri
 
 	#We can't use protobuf to parse the playlist URIs (yet) so we need to regex it (I'M SORRY HEXXEH)
 	tracks = playlist_track_listing(sp, res)
@@ -341,7 +347,15 @@ def playlist_callback(sp, result):
 	sp.currentTracks = tracks
 	sp.currentUri = tracks[0];
 	id = SpotifyUtil.uri2id(tracks[0])
-	sp.track_uri(id, "mp3160", track_uri_callback)
+	sp.track_uri(id, "mp3160", track_uri_callback)"""
+
+
+	print obj.attributes.name+"\n"
+	for track in obj.contents.items:
+		if SpotifyUtil.get_uri_type(track.uri) != "track":
+			continue
+		print track.uri
+		sp.metadata_request("track", SpotifyUtil.uri2id(track.uri), track_metadata_callback)
 
 def userdata_callback(sp, result):
 	print result["user"]
@@ -349,7 +363,8 @@ def userdata_callback(sp, result):
 def login_callback(sp, result):
 	#sp.user_info_request(userdata_callback)
 	#sp.metadata_request("album", SpotifyUtil.uri2id("spotify:album:3OmHoatMS34vM7ZKb4WCY3"), album_metadata_callback)
-	sp.playlist_request("3U679q1vMPEJhFwrqP5RFw", 102, 200, playlist_callback)
+
+	sp.playlist_request("3U679q1vMPEJhFwrqP5RFw", 0, 200, playlist_callback)
 
 sp = SpotifyAPI(login_callback)
 sp.auth()
