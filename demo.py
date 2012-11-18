@@ -10,10 +10,7 @@ def track_callback(sp, tracks):
 
 def album_callback(sp, album):
 	print album.name+"\n"
-	uris = []
-	for track in album.disc[0].track:
-		uris.append(SpotifyUtil.gid2uri("track", track.gid))
-
+	uris = [SpotifyUtil.gid2uri("track", track.gid) for track in album.disc[0].track]	
 	sp.metadata_request(uris, track_callback)
 
 def login_callback(sp):

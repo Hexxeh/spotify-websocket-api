@@ -12,7 +12,7 @@ import playlist4ops_pb2
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 class Logging():
-	log_level = 2
+	log_level = 1
 
 	@staticmethod
 	def debug(str):
@@ -164,6 +164,9 @@ class SpotifyAPI():
 		settings_str = r.groups()[0]
 		self.settings = json.loads(settings_str)
 
+	def auth_from_json(self, json):
+		self.settings = json
+
 	def populate_userdata_callback(self, sp, resp):
 		self.username = resp["user"]
 		self.country = resp["country"]
@@ -258,7 +261,7 @@ class SpotifyAPI():
 		self.send_command("sp/track_end", args, callback)
 
 
-	def user_info_request(self, callback):
+	def user_info_request(self, callback = None):
 		self.send_command("sp/user_info", callback = callback)
 
 	def send_command(self, name, args = [], callback = None):
