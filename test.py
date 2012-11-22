@@ -30,6 +30,11 @@ def playlist_callback(sp, playlist):
 	
 	sp.metadata_request(uris, multi_track_metadata_callback)
 
+
+def playlists_callback(sp, playlists):
+	for playlist in playlists.contents.items:
+		print playlist.uri
+
 def userdata_callback(sp, result):
 	print result["user"]
 
@@ -37,7 +42,8 @@ def login_callback(sp):
 	#sp.user_info_request(userdata_callback)
 	#sp.metadata_request("spotify:album:3OmHoatMS34vM7ZKb4WCY3", album_metadata_callback)
 	#sp.metadata_request("spotify:track:1QTmt4xLgL91PiTLMldX7n", track_metadata_callback)
-	sp.playlist_request("spotify:user:topsify:playlist:1QM1qz09ZzsAPiXphF1l4S", 0, 100, playlist_callback)
+	#sp.playlist_request("spotify:user:topsify:playlist:1QM1qz09ZzsAPiXphF1l4S", 0, 100, playlist_callback)
+	sp.playlists_request("hexxeh", 0, 100, playlists_callback)
 
 sp = SpotifyAPI(login_callback)
 sp.auth()

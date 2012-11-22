@@ -225,6 +225,18 @@ class SpotifyAPI():
 		obj = SpotifyUtil.parse_metadata(resp)
 		callback_data[0](self, obj)
 
+	def playlists_request(self, user, fromnum, num, callback):
+		if num > 100:
+			Logging.error("You may only request up to 100 playlists at once")
+			return False
+
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = "GET"
+		mercury_request.uri = "hm://playlist/user/"+user+"/rootlist?from=" + str(fromnum) + "&length=" + str(num)
+		req = base64.encodestring(mercury_request.SerializeToString())
+		args = [0, req]
+		self.send_command("sp/hm_b64", args, [self.playlist_response, callback])
+
 	def playlist_request(self, uri, fromnum, num, callback):
 		if num > 100:
 			Logging.error("You may only request up to 100 tracks at once")

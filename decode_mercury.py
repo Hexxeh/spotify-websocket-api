@@ -1,11 +1,20 @@
+#!/usr/bin/python
 import sys, base64
 
 sys.path.append("proto")
 
 import mercury_pb2, metadata_pb2
 
-msg = sys.argv[1]
-mercury_reply = mercury_pb2.MercuryRequest()
-mercury_reply.ParseFromString(base64.decodestring(msg))
+msg_types = {
+	"request": mercury_pb2.MercuryRequest,
+	"reply": mercury_pb2.MercuryReply,
+	"mget_request": mercury_pb2.MercuryMultiGetRequest,
+	"mget_reply": mercury_pb2.MercuryMultiGetReply
+}
 
-print mercury_reply.__str__()
+msg = sys.argv[2]
+ctor = msg_types[sys.argv[1]]
+
+obj = ctor()
+obj.ParseFromString(base64.decodestring(msg))
+print obj.__str__()
