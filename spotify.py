@@ -270,6 +270,34 @@ class SpotifyAPI():
 		obj = SpotifyUtil.parse_playlist(resp)
 		callback_data[0](self, obj)
 
+	def playlist_op_track(self, playlist_uri, track_uri, op, callback = None):
+		playlist = playlist_uri.split(":")
+		user = playlist[2]
+		if playlist[3] == "starred":
+			playlist_id = "starred"
+		else:
+			playlist_id = "playlist/"+playlist[4]
+
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = op
+		mercury_request.uri = "hm://playlist/user/"+user+"/" + playlist_id + "?syncpublished=1"
+		print mercury_request.__str__()
+		req = base64.encodestring(mercury_request.SerializeToString())
+		args = [0, req, base64.encodestring(track_uri)]
+		self.send_command("sp/hm_b64", args, callback)
+
+	def playlist_add_track(self, playlist_uri, track_uri, callback = None):
+		self.playlist_op_track(playlist_uri, track_uri, "ADD", callback)
+
+	def playlist_remove_track(self, playlist_uri, track_uri, callback = None):
+		self.playlist_op_track(playlist_uri, track_uri, "REMOVE", callback)
+
+	def set_starred(self, track_uri, starred = True, callback = None):
+		if starred:
+			self.playlist_add_track("spotify:user:"+self.username+":starred", track_uri, callback)
+		else:
+			self.playlist_remove_track("spotify:user:"+self.username+":starred", track_uri, callback)
+
 	def track_progress(self, lid, ms, randnum, userid, playlist, trackuri, callback):
 		args = [lid, "playlist", "clickrow", ms, randnum,
 		 "spotify:user:" + userid + ":playlist: " + playlist,
@@ -279,7 +307,6 @@ class SpotifyAPI():
 
 	def track_event(self, lid, eventcode, secondNum, callback):
 		args = [lid, eventcode, secondNum]
-		#print args
 		self.send_command("sp/track_event", args, callback)
 
 	def track_end(self, lid, XNum, progressnum, uri, userid, playlistid, callback):

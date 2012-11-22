@@ -9,7 +9,9 @@ msg_types = {
 	"request": mercury_pb2.MercuryRequest,
 	"reply": mercury_pb2.MercuryReply,
 	"mget_request": mercury_pb2.MercuryMultiGetRequest,
-	"mget_reply": mercury_pb2.MercuryMultiGetReply
+	"mget_reply": mercury_pb2.MercuryMultiGetReply,
+	"track": metadata_pb2.Track,
+	"album": metadata_pb2.Album
 }
 
 msg = sys.argv[2]

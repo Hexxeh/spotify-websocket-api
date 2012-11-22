@@ -38,7 +38,7 @@ def playlists_callback(sp, playlists):
 def userdata_callback(sp, result):
 	print result["user"]
 
-def search_callback(sp, result):
+def generic_callback(sp, result):
 	print result
 
 def login_callback(sp):
@@ -47,7 +47,8 @@ def login_callback(sp):
 	#sp.metadata_request("spotify:track:1QTmt4xLgL91PiTLMldX7n", track_metadata_callback)
 	#sp.playlist_request("spotify:user:topsify:playlist:1QM1qz09ZzsAPiXphF1l4S", 0, 100, playlist_callback)
 	#sp.playlists_request("hexxeh", 0, 100, playlists_callback)
-	sp.search_request("norah jones", search_callback)
+	#sp.search_request("norah jones", generic_callback)
+	sp.set_starred("spotify:track:0Cvjlph1WGbwZY1PlMEtJY", False, generic_callback)
 
 sp = SpotifyAPI(login_callback)
 sp.auth()

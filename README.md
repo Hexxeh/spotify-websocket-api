@@ -21,9 +21,5 @@ TODO
 Want to help out? Great! Here's a a list of things that need doing or improving:
 
 * Automating the FB login crap (so that you can login using a username/password and don't have to grab a cookie)
-* Search support
 * Toplist support
 * Radio support
-* Queuing and auto-retry for song URL requests (to workaround the rate limiting)
-* Playlist editing support
-* Track starring
