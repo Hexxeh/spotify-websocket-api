@@ -12,7 +12,7 @@ import playlist4ops_pb2
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 class Logging():
-	log_level = 1
+	log_level = 3
 
 	@staticmethod
 	def debug(str):
@@ -199,8 +199,8 @@ class SpotifyAPI():
 
 		self.send_command("connect", credentials, self.logged_in)
 
-	def track_uri(self, id, codec, callback):
-		args = [codec, id]
+	def track_uri(self, id, callback):
+		args = ["mp3160", id]
 		self.send_command("sp/track_uri", args, callback)
 
 	def generate_multiget_args(self, metadata_type, requests):
@@ -247,7 +247,7 @@ class SpotifyAPI():
 
 	def metadata_response(self, sp, resp, callback_data):
 		obj = SpotifyUtil.parse_metadata(resp)
-		callback_data[0](self, obj)
+		callback_data[0](self, obj, callback_data[1:])
 
 	def playlists_request(self, user, fromnum, num, callback):
 		if num > 100:
@@ -283,7 +283,7 @@ class SpotifyAPI():
 
 	def playlist_response(self, sp, resp, callback_data):
 		obj = SpotifyUtil.parse_playlist(resp)
-		callback_data[0](self, obj)
+		callback_data[0](self, obj, callback_data[1:])
 
 	def playlist_op_track(self, playlist_uri, track_uri, op, callback = None):
 		playlist = playlist_uri.split(":")

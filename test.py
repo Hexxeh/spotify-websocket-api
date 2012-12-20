@@ -18,7 +18,7 @@ def album_metadata_callback(sp, album):
 	uris = []
 	for track in album.disc[0].track:
 		uris.append(SpotifyUtil.id2uri("track", SpotifyUtil.gid2id(track.gid)))
-		#sp.track_uri(SpotifyUtil.gid2id(track.gid), "mp3160", track_uri_callback)
+		#sp.track_uri(SpotifyUtil.gid2id(track.gid), track_uri_callback)
 
 	sp.metadata_request(uris, multi_track_metadata_callback)
 
