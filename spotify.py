@@ -425,7 +425,8 @@ class SpotifyAPI():
 
 	def connect(self, username, password):
 		if self.settings == None:
-			self.auth(username, password)
+			 if not self.auth(username, password):
+			 	return False
 
 		Logging.notice("Connecting to "+self.settings["aps"]["ws"][0])
 		
