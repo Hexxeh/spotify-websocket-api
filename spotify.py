@@ -203,6 +203,24 @@ class SpotifyAPI():
 		args = [codec, id]
 		self.send_command("sp/track_uri", args, callback)
 
+	def generate_multiget_args(self, metadata_type, requests):
+		args = [0]
+
+		if len(requests.request) == 1:
+			req = base64.encodestring(requests.request[0].SerializeToString())
+			args.append(req)
+		else:
+			header = mercury_pb2.MercuryRequest()
+			header.body = "GET"
+			header.uri = "hm://metadata/"+metadata_type+"s"
+			header.content_type = "vnd.spotify/mercury-mget-request"
+
+			header_str = base64.encodestring(header.SerializeToString())
+			req = base64.encodestring(requests.SerializeToString())
+			args.extend([header_str, req])
+
+		return args
+
 	def metadata_request(self, uris, callback):
 		mercury_requests = mercury_pb2.MercuryMultiGetRequest()
 
@@ -211,6 +229,10 @@ class SpotifyAPI():
 
 		for uri in uris:
 			uri_type = SpotifyUtil.get_uri_type(uri)
+			if uri_type == "local":
+				Logging.warn("Track with URI "+uri+" is a local track, we can't request metadata, skipping")
+				continue
+
 			id = SpotifyUtil.uri2id(uri)
 
 			mercury_request = mercury_pb2.MercuryRequest()
@@ -219,43 +241,77 @@ class SpotifyAPI():
 
 			mercury_requests.request.extend([mercury_request])
 
-		args = [0]
 
-		if len(mercury_requests.request) == 1:
-			req = base64.encodestring(mercury_requests.request[0].SerializeToString())
-			args.append(req)
-		else:
-			header = mercury_pb2.MercuryRequest()
-			header.body = "GET"
-			header.uri = "hm://metadata/"+SpotifyUtil.get_uri_type(uris[0])+"s"
-			header.content_type = "vnd.spotify/mercury-mget-request"
-
-			header_str = base64.encodestring(header.SerializeToString())
-			req = base64.encodestring(mercury_requests.SerializeToString())
-			args.extend([header_str, req])
-
+		args = self.generate_multiget_args(SpotifyUtil.get_uri_type(uris[0]), mercury_requests)
 		self.send_command("sp/hm_b64", args, [self.metadata_response, callback])
 
 	def metadata_response(self, sp, resp, callback_data):
 		obj = SpotifyUtil.parse_metadata(resp)
 		callback_data[0](self, obj)
 
-	def playlist_request(self, uri, fromnum, num, callback):
+	def playlists_request(self, user, fromnum, num, callback):
+		if num > 100:
+			Logging.error("You may only request up to 100 playlists at once")
+			return False
+
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = "GET"
+		mercury_request.uri = "hm://playlist/user/"+user+"/rootlist?from=" + str(fromnum) + "&length=" + str(num)
+		req = base64.encodestring(mercury_request.SerializeToString())
+		args = [0, req]
+		self.send_command("sp/hm_b64", args, [self.playlist_response, callback])
+
+	def playlist_request(self, uris, fromnum, num, callback):
 		if num > 100:
 			Logging.error("You may only request up to 100 tracks at once")
 			return False
 
-		playlist = uri.split(":")
-		mercury_request = mercury_pb2.MercuryRequest()
-		mercury_request.body = "GET"
-		mercury_request.uri = "hm://playlist/user/"+playlist[2]+"/playlist/" + playlist[4] + "?from=" + str(fromnum) + "&length=" + str(num)
-		req = base64.encodestring(mercury_request.SerializeToString())
-		args = [0, req]
+		mercury_requests = mercury_pb2.MercuryMultiGetRequest()
+
+		if type(uris) != list:
+			uris = [uris]
+
+		for uri in uris:
+			playlist = uri.split(":")
+			mercury_request = mercury_pb2.MercuryRequest()
+			mercury_request.body = "GET"
+			mercury_request.uri = "hm://playlist/user/"+playlist[2]+"/playlist/" + playlist[4] + "?from=" + str(fromnum) + "&length=" + str(num)
+			mercury_requests.request.extend([mercury_request])
+
+		args = self.generate_multiget_args(SpotifyUtil.get_uri_type(uris[0]), mercury_requests)
 		self.send_command("sp/hm_b64", args, [self.playlist_response, callback])
 
 	def playlist_response(self, sp, resp, callback_data):
 		obj = SpotifyUtil.parse_playlist(resp)
 		callback_data[0](self, obj)
+
+	def playlist_op_track(self, playlist_uri, track_uri, op, callback = None):
+		playlist = playlist_uri.split(":")
+		user = playlist[2]
+		if playlist[3] == "starred":
+			playlist_id = "starred"
+		else:
+			playlist_id = "playlist/"+playlist[4]
+
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = op
+		mercury_request.uri = "hm://playlist/user/"+user+"/" + playlist_id + "?syncpublished=1"
+		print mercury_request.__str__()
+		req = base64.encodestring(mercury_request.SerializeToString())
+		args = [0, req, base64.encodestring(track_uri)]
+		self.send_command("sp/hm_b64", args, callback)
+
+	def playlist_add_track(self, playlist_uri, track_uri, callback = None):
+		self.playlist_op_track(playlist_uri, track_uri, "ADD", callback)
+
+	def playlist_remove_track(self, playlist_uri, track_uri, callback = None):
+		self.playlist_op_track(playlist_uri, track_uri, "REMOVE", callback)
+
+	def set_starred(self, track_uri, starred = True, callback = None):
+		if starred:
+			self.playlist_add_track("spotify:user:"+self.username+":starred", track_uri, callback)
+		else:
+			self.playlist_remove_track("spotify:user:"+self.username+":starred", track_uri, callback)
 
 	def track_progress(self, lid, ms, randnum, userid, playlist, trackuri, callback):
 		args = [lid, "playlist", "clickrow", ms, randnum,
@@ -266,7 +322,6 @@ class SpotifyAPI():
 
 	def track_event(self, lid, eventcode, secondNum, callback):
 		args = [lid, eventcode, secondNum]
-		#print args
 		self.send_command("sp/track_event", args, callback)
 
 	def track_end(self, lid, XNum, progressnum, uri, userid, playlistid, callback):
@@ -275,6 +330,9 @@ class SpotifyAPI():
          "spotify:app:playlist:" + userid + ":" + playlistid, "0.1.0", "com.spotify", XNum]
 		self.send_command("sp/track_end", args, callback)
 
+	def search_request(self, query, callback = None):
+		args = [query]
+		self.send_command("sp/search", args, callback = callback)
 
 	def user_info_request(self, callback = None):
 		self.send_command("sp/user_info", callback = callback)
