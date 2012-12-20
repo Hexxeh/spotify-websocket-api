@@ -1,13 +1,15 @@
 #!/usr/bin/python
 
-# This is only going to work on OS X where VLC is installed
-# (because of the use of open)
-
 import os, sys
 from spotify import SpotifyAPI, SpotifyUtil
 
 def track_uri_callback(sp, result):
-	os.system("open -a VLC \""+result["uri"]+"\"")
+	if sys.platform == "darwin":
+		os.system("open -a VLC \""+result["uri"]+"\"")
+	elif sys.platform == "linux" or sys.platform == "linux2":
+		os.system("vlc \""+result["uri"]+"\"")
+	else:
+		print "URL: "+result["uri"]
 	sp.disconnect()
 
 def login_callback(sp, logged_in):
