@@ -4,22 +4,26 @@ spotify-websocket-api
 Getting started
 ---------------
 
-Currently, Spotify's web client is requiring that you're logged into Facebook in order to login. This is somewhat of a pain to deal with.
+Firstly, try out the demo script to make sure you've got the dependencies installed properly:
 
-So, for now, you'll need to dump a cookie in order to login. The cookie you want is named "sps" and can be found in the request to https://play.spotify.com.
+<pre>
+python demo.py <username> <password> [optional album URI]
+</pre>
 
-Save the value of that cookie to a file called sps.txt in the same folder as spotify.py in this repo.
+This should show an album title and a list of track titles for it.
 
-You can now run the demo script:
+Using the API is pretty simple, here's the basics:
 
-python demo.py
-
+<pre>
+sp = SpotifyAPI(login_callback)
+sp.connect(username, password)
+</pre>
 
 TODO
 ----
 
 Want to help out? Great! Here's a a list of things that need doing or improving:
 
-* Automating the FB login crap (so that you can login using a username/password and don't have to grab a cookie)
+* Image support
 * Toplist support
 * Radio support
