@@ -41,14 +41,17 @@ def userdata_callback(sp, result):
 def generic_callback(sp, result):
 	print result
 
-def login_callback(sp):
-	#sp.user_info_request(userdata_callback)
-	#sp.metadata_request("spotify:album:3OmHoatMS34vM7ZKb4WCY3", album_metadata_callback)
-	#sp.metadata_request("spotify:track:1QTmt4xLgL91PiTLMldX7n", track_metadata_callback)
-	#sp.playlist_request("spotify:user:topsify:playlist:1QM1qz09ZzsAPiXphF1l4S", 0, 100, playlist_callback)
-	#sp.playlists_request("hexxeh", 0, 100, playlists_callback)
-	#sp.search_request("norah jones", generic_callback)
-	sp.set_starred("spotify:track:0Cvjlph1WGbwZY1PlMEtJY", False, generic_callback)
+def login_callback(sp, logged_in):
+	if logged_in:
+		#sp.user_info_request(userdata_callback)
+		#sp.metadata_request("spotify:album:3OmHoatMS34vM7ZKb4WCY3", album_metadata_callback)
+		#sp.metadata_request("spotify:track:1QTmt4xLgL91PiTLMldX7n", track_metadata_callback)
+		#sp.playlist_request("spotify:user:topsify:playlist:1QM1qz09ZzsAPiXphF1l4S", 0, 100, playlist_callback)
+		#sp.playlists_request("hexxeh", 0, 100, playlists_callback)
+		#sp.search_request("norah jones", generic_callback)
+		sp.set_starred("spotify:track:0Cvjlph1WGbwZY1PlMEtJY", False, generic_callback)
+	else:
+		print "There was an error logging in"
 
 if len(sys.argv) < 3:
 	print "Usage: "+sys.argv[0]+" <username> <password> [album URI]"

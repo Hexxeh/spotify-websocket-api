@@ -12,7 +12,7 @@ import playlist4ops_pb2
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 class Logging():
-	log_level = 3
+	log_level = 1
 
 	@staticmethod
 	def debug(str):
@@ -161,6 +161,7 @@ class SpotifyAPI():
 
 		if not r or len(r.groups()) < 1:
 			Logging.error("There was a problem authenticating, no auth secret found")
+			self.login_callback(self, False)
 			return False
 		secret = r.groups()[0]
 
@@ -175,6 +176,7 @@ class SpotifyAPI():
 
 		if resp_json["status"] != "OK":
 			Logging.error("There was a problem authenticating, authentication failed")
+			self.login_callback(self, False)
 			return False
 
 		self.settings = resp.json()["config"]
@@ -186,7 +188,7 @@ class SpotifyAPI():
 		self.username = resp["user"]
 		self.country = resp["country"]
 		self.account_type = resp["catalogue"]
-		self.login_callback(self)
+		self.login_callback(self, True)
 
 	def logged_in(self, sp, resp):
 		self.user_info_request(self.populate_userdata_callback)
