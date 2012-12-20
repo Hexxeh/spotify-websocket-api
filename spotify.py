@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import base64, binascii, httplib, json, pprint, re, string, sys, time, urllib
+import base64, binascii, json, pprint, re, requests, string, sys, time
 from ws4py.client.threadedclient import WebSocketClient
 
 sys.path.append("proto")
@@ -137,32 +137,47 @@ class SpotifyAPI():
 		self.cmd_callbacks = {}
 		self.login_callback = login_callback_func
 
-	def auth(self):
+	def auth(self, username, password):
 		if self.settings != None:
 			Logging.warn("You must only authenticate once per API object")
 			return False
 
-		with open ("sps.txt", "r") as myfile:
-			sps=myfile.read().replace('\n', '')
-
-		conn = httplib.HTTPSConnection(self.auth_server)
 		headers = {
-			"Cookie": "sps="+sps
+			"User-Agent": "spotify-websocket-api (Chrome/13.37 compatible-ish)",
 		}
-		conn.request("GET", "/", headers = headers)
-		response = conn.getresponse()
-		data = response.read()
-		conn.close()
 
-		rx = re.compile("Spotify.Web.App.initialize\((.*), null\);")
+		session = requests.session()
+
+		secret_payload = {
+			"album": "http://open.spotify.com/album/2mCuMNdJkoyiXFhsQCLLqw",
+			"song": "http://open.spotify.com/track/6JEK0CvvjDjjMUBFoXShNZ",
+		}
+
+		resp = session.get("https://"+self.auth_server+"/redirect/facebook/notification.php", params=secret_payload, headers = headers)
+		data = resp.text
+
+		rx = re.compile("<form><input id=\"secret\" type=\"hidden\" value=\"(.*)\" /></form>")
 		r = rx.search(data)
 
 		if not r or len(r.groups()) < 1:
-			Logging.error("There was a problem authenticating, no auth JSON found")
+			Logging.error("There was a problem authenticating, no auth secret found")
+			return False
+		secret = r.groups()[0]
+
+		login_payload = {
+			"type": "sp",
+			"username": username,
+			"password": password,
+			"secret": secret,
+		}
+		resp = session.post("https://"+self.auth_server+"/xhr/json/auth.php", data=login_payload, headers = headers)
+		resp_json = resp.json()
+
+		if resp_json["status"] != "OK":
+			Logging.error("There was a problem authenticating, authentication failed")
 			return False
 
-		settings_str = r.groups()[0]
-		self.settings = json.loads(settings_str)
+		self.settings = resp.json()["config"]
 
 	def auth_from_json(self, json):
 		self.settings = json
@@ -350,9 +365,9 @@ class SpotifyAPI():
 		else:
 			Logging.error(major_str + " - " + minor_str)
 
-	def connect(self):
+	def connect(self, username, password):
 		if self.settings == None:
-			self.auth()
+			self.auth(username, password)
 
 		Logging.notice("Connecting to "+self.settings["aps"]["ws"][0])
 		

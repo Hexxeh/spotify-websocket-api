@@ -14,8 +14,11 @@ def album_callback(sp, album):
 	sp.metadata_request(uris, track_callback)
 
 def login_callback(sp):
-	uri = sys.argv[1] if len(sys.argv) > 1 else "spotify:album:3OmHoatMS34vM7ZKb4WCY3"
+	uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:album:3OmHoatMS34vM7ZKb4WCY3"
 	sp.metadata_request(uri, album_callback)
 
-sp = SpotifyAPI(login_callback)
-sp.connect()
+if len(sys.argv) < 3:
+	print "Usage: "+sys.argv[0]+" <username> <password> [album URI]"
+else:
+	sp = SpotifyAPI(login_callback)
+	sp.connect(sys.argv[1], sys.argv[2])

@@ -39,6 +39,8 @@ def login_callback(sp):
 	#sp.metadata_request("spotify:track:1QTmt4xLgL91PiTLMldX7n", track_metadata_callback)
 	sp.playlist_request("spotify:user:topsify:playlist:1QM1qz09ZzsAPiXphF1l4S", 0, 100, playlist_callback)
 
-sp = SpotifyAPI(login_callback)
-sp.auth()
-sp.connect()
+if len(sys.argv) < 3:
+	print "Usage: "+sys.argv[0]+" <username> <password> [album URI]"
+else:
+	sp = SpotifyAPI(login_callback)
+	sp.connect(sys.argv[1], sys.argv[2])
