@@ -243,13 +243,16 @@ class SpotifyAPI():
 
 			mercury_requests.request.extend([mercury_request])
 
-
+		callback = [callback] if type(callback) != list else callback
 		args = self.generate_multiget_args(SpotifyUtil.get_uri_type(uris[0]), mercury_requests)
-		self.send_command("sp/hm_b64", args, [self.metadata_response, callback])
+		self.send_command("sp/hm_b64", args, [self.metadata_response]+callback)
 
 	def metadata_response(self, sp, resp, callback_data):
 		obj = SpotifyUtil.parse_metadata(resp)
-		callback_data[0](self, obj, callback_data[1:])
+		if len(callback_data[1:]) > 0:
+			callback_data[0](self, obj, callback_data[1:])
+		else:
+			callback_data[0](self, obj)
 
 	def playlists_request(self, user, fromnum, num, callback):
 		if num > 100:
@@ -260,8 +263,10 @@ class SpotifyAPI():
 		mercury_request.body = "GET"
 		mercury_request.uri = "hm://playlist/user/"+user+"/rootlist?from=" + str(fromnum) + "&length=" + str(num)
 		req = base64.encodestring(mercury_request.SerializeToString())
+
+		callback = [callback] if type(callback) != list else callback
 		args = [0, req]
-		self.send_command("sp/hm_b64", args, [self.playlist_response, callback])
+		self.send_command("sp/hm_b64", args, [self.playlist_response]+callback)
 
 	def playlist_request(self, uris, fromnum, num, callback):
 		if num > 100:
@@ -285,7 +290,10 @@ class SpotifyAPI():
 
 	def playlist_response(self, sp, resp, callback_data):
 		obj = SpotifyUtil.parse_playlist(resp)
-		callback_data[0](self, obj, callback_data[1:])
+		if len(callback_data[1:]) > 0:
+			callback_data[0](self, obj, callback_data[1:])
+		else:
+			callback_data[0](self, obj)
 
 	def playlist_op_track(self, playlist_uri, track_uri, op, callback = None):
 		playlist = playlist_uri.split(":")
