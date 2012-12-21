@@ -1,0 +1,13 @@
+Source: spotify-web
+Section: net
+Priority: extra
+Maintainer: Vegar Storvann <storvann@gmail.com>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.3
+
+Package: spotify-web
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}, python${python:Versions}
+#Recommends: 
+Description: API for Spotify web socket service
+ TODO

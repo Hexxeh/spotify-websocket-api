@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import sys
-from spotify import SpotifyAPI, SpotifyUtil
+from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 
 def track_uri_callback(sp, result):
 	print str(result)

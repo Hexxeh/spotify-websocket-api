@@ -1,9 +1,7 @@
 #!/usr/bin/python
 import sys, base64
 
-sys.path.append("proto")
-
-import mercury_pb2, metadata_pb2
+from spotify_web.proto import mercury_pb2, metadata_pb2
 
 msg_types = {
 	"request": mercury_pb2.MercuryRequest,
