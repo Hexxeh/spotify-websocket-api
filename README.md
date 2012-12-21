@@ -7,7 +7,7 @@ Getting started
 Firstly, try out the demo script to make sure you've got the dependencies installed properly:
 
 <pre>
-python demo.py <username> <password> [optional album URI]
+python demo.py &lt;username&gt; &lt;password&gt; [optional album URI]
 </pre>
 
 This should show an album title and a list of track titles for it.
