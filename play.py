@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 import os, sys
-from spotify import SpotifyAPI, SpotifyUtil
+from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 
 def track_uri_callback(sp, result):
 	if sys.platform == "darwin":

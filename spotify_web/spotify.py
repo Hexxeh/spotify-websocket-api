@@ -3,11 +3,10 @@
 import base64, binascii, json, pprint, re, requests, string, sys, time
 from ws4py.client.threadedclient import WebSocketClient
 
-sys.path.append("proto")
-import mercury_pb2, metadata_pb2
-import playlist4changes_pb2, playlist4content_pb2
-import playlist4issues_pb2, playlist4meta_pb2
-import playlist4ops_pb2
+from .proto import mercury_pb2, metadata_pb2
+from .proto import playlist4changes_pb2, playlist4content_pb2
+from .proto import playlist4issues_pb2, playlist4meta_pb2
+from .proto import playlist4ops_pb2
 
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
