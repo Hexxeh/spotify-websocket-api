@@ -220,9 +220,14 @@ class SpotifyAPI():
 
 		self.send_command("connect", credentials, self.logged_in)
 
-	def track_uri(self, id, callback):
+	def track_uri(self, id, callback = False):
 		args = ["mp3160", id]
-		self.send_command("sp/track_uri", args, callback)
+		if callback == False:
+			data = WrapAsync(None, self.send_command, "sp/track_uri", args).get_data()
+			return data
+		else:
+			callback = [callback] if type(callback) != list else callback
+			self.send_command("sp/track_uri", args, callback)
 
 	def generate_multiget_args(self, metadata_type, requests):
 		args = [0]
