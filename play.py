@@ -6,7 +6,7 @@ from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 def track_uri_callback(sp, result):
 	if sys.platform == "darwin":
 		os.system("open -a VLC \""+result["uri"]+"\"")
-	elif sys.platform == "linux" or sys.platform == "linux2":
+	elif sys.platform == "linux" or sys.platform == "linux2" or sys.platform[:7] == "freebsd":
 		os.system("vlc \""+result["uri"]+"\"")
 	else:
 		print "URL: "+result["uri"]
