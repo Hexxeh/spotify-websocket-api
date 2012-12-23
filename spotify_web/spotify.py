@@ -226,7 +226,6 @@ class SpotifyAPI():
 			data = WrapAsync(None, self.send_command, "sp/track_uri", args).get_data()
 			return data
 		else:
-			callback = [callback] if type(callback) != list else callback
 			self.send_command("sp/track_uri", args, callback)
 
 	def generate_multiget_args(self, metadata_type, requests):
