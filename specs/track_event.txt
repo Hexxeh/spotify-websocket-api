@@ -1,4 +1,0 @@
-sp/track_event
-	-Song session identifer (returned from track_uri as "lid")
-	-Event code ("3" for starting a song
-	-0 (unsure)

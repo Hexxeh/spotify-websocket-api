@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys
+import sys; sys.path.append("..")
 from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 
 if len(sys.argv) < 4:
@@ -53,3 +53,14 @@ elif action == "playlist":
 
 	playlist = sp.playlist_request(uri)
 	display_playlist(playlist)
+
+elif action == "restriction":
+	uri = sys.argv[4] if len(sys.argv) > 4 else "spotify:track:3IKSCoHEblCE60IKr4SVNd"
+
+	track = sp.metadata_request(uri)
+	resp = sp.track_uri(SpotifyUtil.gid2id(track.gid))
+
+	if uri in resp:
+		print "Track is available!"
+	else:
+		print "Track is NOT available! Double-check this using the official client"

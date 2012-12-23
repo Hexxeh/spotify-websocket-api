@@ -235,7 +235,7 @@ class SpotifyAPI():
 		obj.ParseFromString(res)
 		return obj
 
-	def recurse_alternatives(self, track):
+	def is_track_available(self, track):
 		allowed_countries = []
 		forbidden_countries = []
 		allowed = False
@@ -254,8 +254,10 @@ class SpotifyAPI():
 			if allowed == True and forbidden == False:
 				break
 
-		print "\tallowed: "+str(allowed)+" forbidden: "+str(forbidden)
-		if allowed == True and forbidden == False:
+		return allowed == True and forbidden == False
+
+	def recurse_alternatives(self, track):
+		if self.is_track_available(track):
 			return track
 		else:
 			for alternative in track.alternative:

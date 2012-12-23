@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
-import os, sys
+import sys; sys.path.append("..")
+import os
 from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 
 def track_uri_callback(sp, result):

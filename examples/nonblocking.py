@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys
+import sys; sys.path.append("..")
 from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 
 def track_callback(sp, tracks):

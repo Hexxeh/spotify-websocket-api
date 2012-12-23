@@ -1,6 +1,6 @@
 #!/usr/bin/python
-import sys, base64
-
+import sys; sys.path.append("..")
+import base64
 from spotify_web.proto import mercury_pb2, metadata_pb2
 
 msg_types = {
