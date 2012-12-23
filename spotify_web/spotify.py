@@ -99,42 +99,6 @@ class SpotifyUtil():
 	def get_uri_type(uri):	
 		return uri.split(":")[1]
 
-	@staticmethod
-	def parse_metadata(resp):
-		header = mercury_pb2.MercuryReply()
-		header.ParseFromString(base64.decodestring(resp[0]))
-
-		if header.status_message == "vnd.spotify/mercury-mget-reply":
-			mget_reply = mercury_pb2.MercuryMultiGetReply()
-			mget_reply.ParseFromString(base64.decodestring(resp[1]))
-			items = []
-			for reply in mget_reply.reply:
-				item = SpotifyUtil.parse_metadata_item(reply.content_type, reply.body)
-				items.append(item)
-			return items
-		else:
-			return SpotifyUtil.parse_metadata_item(header.status_message, base64.decodestring(resp[1]))
-
-	@staticmethod
-	def parse_metadata_item(content_type, body):
-		if content_type == "vnd.spotify/metadata-album":
-			obj = metadata_pb2.Album()
-		elif content_type == "vnd.spotify/metadata-track":
-			obj = metadata_pb2.Track()
-		else:
-			Logging.error("Unrecognised metadata type " + content_type)
-			return False
-
-		obj.ParseFromString(body)
-		return obj
-
-	@staticmethod
-	def parse_playlist(resp):
-		obj = playlist4changes_pb2.ListDump()
-		res = base64.decodestring(resp[1])
-		obj.ParseFromString(res)
-		return obj
-
 class SpotifyAPI():
 	def __init__(self, login_callback_func = False):
 		self.auth_server = "play.spotify.com"
@@ -177,7 +141,7 @@ class SpotifyAPI():
 
 		if not r or len(r.groups()) < 1:
 			Logging.error("There was a problem authenticating, no auth secret found")
-			gevent.spawn(self.login_callback, False)
+			self.do_login_callback(False)
 			return False
 		secret = r.groups()[0]
 
@@ -192,7 +156,7 @@ class SpotifyAPI():
 
 		if resp_json["status"] != "OK":
 			Logging.error("There was a problem authenticating, authentication failed")
-			gevent.spawn(self.login_callback, False)
+			self.do_login_callback(False)
 			return False
 
 		self.settings = resp.json()["config"]
@@ -205,7 +169,7 @@ class SpotifyAPI():
 		self.country = resp["country"]
 		self.account_type = resp["catalogue"]
 		if self.login_callback != False:
-			gevent.spawn(self.login_callback, self, True)
+			self.do_login_callback(True)
 		else:
 			self.logged_in_marker.set()
 
@@ -220,6 +184,12 @@ class SpotifyAPI():
 
 		self.send_command("connect", credentials, self.logged_in)
 
+	def do_login_callback(self, result):
+		if self.login_callback != False:
+			gevent.spawn(self.login_callback, self, result)
+		else:
+			self.logged_in_marker.set()
+
 	def track_uri(self, id, callback = False):
 		args = ["mp3160", id]
 		if callback == False:
@@ -227,6 +197,72 @@ class SpotifyAPI():
 			return data
 		else:
 			self.send_command("sp/track_uri", args, callback)
+
+	def parse_metadata(self, resp):
+		header = mercury_pb2.MercuryReply()
+		header.ParseFromString(base64.decodestring(resp[0]))
+
+		if header.status_message == "vnd.spotify/mercury-mget-reply":
+			mget_reply = mercury_pb2.MercuryMultiGetReply()
+			mget_reply.ParseFromString(base64.decodestring(resp[1]))
+			items = []
+			for reply in mget_reply.reply:
+				item = self.parse_metadata_item(reply.content_type, reply.body)
+				items.append(item)
+			return items
+		else:
+			return self.parse_metadata_item(header.status_message, base64.decodestring(resp[1]))
+
+	def parse_metadata_item(self, content_type, body):
+		if content_type == "vnd.spotify/metadata-album":
+			obj = metadata_pb2.Album()
+		elif content_type == "vnd.spotify/metadata-track":
+			obj = metadata_pb2.Track()
+		else:
+			Logging.error("Unrecognised metadata type " + content_type)
+			return False
+
+		obj.ParseFromString(body)
+
+		if content_type == "vnd.spotify/metadata-track":
+			obj = self.recurse_alternatives(obj)
+
+		return obj
+
+	def parse_playlist(self, resp):
+		obj = playlist4changes_pb2.ListDump()
+		res = base64.decodestring(resp[1])
+		obj.ParseFromString(res)
+		return obj
+
+	def recurse_alternatives(self, track):
+		allowed_countries = []
+		forbidden_countries = []
+		allowed = False
+		forbidden = False
+
+		for restriction in track.restriction:
+			allowed_str = restriction.countries_allowed
+			allowed_countries += [allowed_str[i:i+2] for i in range(0, len(allowed_str), 2)]
+
+			forbidden_str = restriction.countries_forbidden
+			forbidden_countries += [forbidden_str[i:i+2] for i in range(0, len(forbidden_str), 2)]
+
+			allowed = len(allowed_countries) == 0 or self.country in allowed_countries
+			forbidden = self.country in forbidden_countries
+
+			if allowed == True and forbidden == False:
+				break
+
+		print "\tallowed: "+str(allowed)+" forbidden: "+str(forbidden)
+		if allowed == True and forbidden == False:
+			return track
+		else:
+			for alternative in track.alternative:
+				found = self.recurse_alternatives(self.metadata_request(SpotifyUtil.gid2uri("track", alternative.gid)))
+				if found != False:
+					return found
+			return False
 
 	def generate_multiget_args(self, metadata_type, requests):
 		args = [0]
@@ -276,7 +312,7 @@ class SpotifyAPI():
 			self.send_command("sp/hm_b64", args, [self.metadata_response]+callback)
 
 	def metadata_response(self, sp, resp, callback_data):
-		obj = SpotifyUtil.parse_metadata(resp)
+		obj = self.parse_metadata(resp)
 		if len(callback_data) > 1:
 			callback_data[0](self, obj, callback_data[1:])
 		else:
@@ -328,7 +364,7 @@ class SpotifyAPI():
 			self.send_command("sp/hm_b64", args, [self.playlist_response]+callback)
 
 	def playlist_response(self, sp, resp, callback_data):
-		obj = SpotifyUtil.parse_playlist(resp)
+		obj = self.parse_playlist(resp)
 		if len(callback_data) > 1:
 			callback_data[0](self, obj, callback_data[1:])
 		else:
