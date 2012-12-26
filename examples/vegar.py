@@ -11,8 +11,10 @@ ao = CDLL('libao.so.4')
 pycurl.global_init(pycurl.GLOBAL_ALL)
 ao.ao_initialize()
 mpg123.mpg123_init()
-mh = mpg123.mpg123_new(None, None)
-mpg123.mpg123_open_feed(mh)
+mpg123_new = mpg123.mpg123_new
+mpg123_new.restype = ctypes.c_void_p
+mh = mpg123_new(ctypes.c_char_p(None), None)
+mpg123.mpg123_open_feed(ctypes.c_void_p(mh))
 
 MPG123_NEW_FORMAT = -11
 MPG123_DONE = -12
@@ -36,29 +38,31 @@ count = 0
 def play_stream(buf):
 	global count
 	global aodev
-	mpg123.mpg123_feed(mh, buf, len(buf))
+	mpg123.mpg123_feed(ctypes.c_void_p(mh), buf, len(buf))
 	done = ctypes.c_int(1)
 	offset = ctypes.c_size_t(0)
 
 	channels = ctypes.c_int(0)
 	encoding = ctypes.c_int(0)
-	rate = ctypes.c_long(0)
+	rate = ctypes.c_int(0)
 
 	audio = ctypes.c_char_p()
 
 	while done.value > 0:
-		err = mpg123.mpg123_decode_frame(mh, ctypes.pointer(offset), ctypes.pointer(audio), ctypes.pointer(done))
+		err = mpg123.mpg123_decode_frame(ctypes.c_void_p(mh), ctypes.pointer(offset), ctypes.pointer(audio), ctypes.pointer(done))
 		if err == MPG123_NEW_FORMAT:
-			mpg123.mpg123_getformat(mh, ctypes.pointer(rate), ctypes.pointer(channels), ctypes.pointer(encoding))
+			mpg123.mpg123_getformat(ctypes.c_void_p(mh), ctypes.pointer(rate), ctypes.pointer(channels), ctypes.pointer(encoding))
 			fmt = AOSampleFormat()
 			fmt.bits = ctypes.c_int(mpg123.mpg123_encsize(encoding)*BITS)
 			fmt.rate = rate
 			fmt.channels = channels
 			fmt.byte_format = AO_FMT_NATIVE
 			fmt.matrix = 0
-			aodev = ao.ao_open_live(ao.ao_default_driver_id(), ctypes.pointer(fmt), None)
+			ao_open_live = ao.ao_open_live
+			ao_open_live.restype = ctypes.c_void_p
+			aodev = ao_open_live(ao.ao_default_driver_id(), ctypes.pointer(fmt), None)
 		elif err == MPG123_OK:
-			ao.ao_play(aodev, audio, done)
+			ao.ao_play(ctypes.c_void_p(aodev), audio, done)
 	return len(buf)
 
 def uri_callback(sp, res):
@@ -71,11 +75,11 @@ def uri_callback(sp, res):
 	curl_obj.perform()
 	curl_obj.cleanup()
 
-	mpg123.mpg123_close(mh)
-	mpg123.mpg123_delete(mh)
+	mpg123.mpg123_close(ctypes.c_void_p(mh))
+	mpg123.mpg123_delete(ctypes.c_void_p(mh))
 	mpg123.mpg123_exit()
 
-	ao.ao_close(aodev)
+	ao.ao_close(ctypes.c_void_p(aodev))
 	ao.ao_shutdown()
 
 def track_callback(sp, track):
