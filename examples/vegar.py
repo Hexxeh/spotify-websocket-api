@@ -38,6 +38,7 @@ count = 0
 def play_stream(buf):
 	global count
 	global aodev
+
 	mpg123.mpg123_feed(ctypes.c_void_p(mh), buf, len(buf))
 	done = ctypes.c_int(1)
 	offset = ctypes.c_size_t(0)
@@ -68,7 +69,7 @@ def play_stream(buf):
 def uri_callback(sp, res):
 	global aodev
 	uri = res['uri']
-	
+
 	curl_obj = pycurl.Curl()
 	curl_obj.setopt(pycurl.WRITEFUNCTION, play_stream)
 	curl_obj.setopt(pycurl.URL, str(uri))
