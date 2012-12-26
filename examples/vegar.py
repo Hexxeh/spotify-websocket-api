@@ -1,0 +1,97 @@
+#!/usr/bin/python
+
+import sys
+import ctypes
+from ctypes import CDLL
+from spotify import SpotifyAPI, SpotifyUtil
+import pycurl
+
+mpg123 = CDLL('libmpg123.so.0')
+ao = CDLL('libao.so.4')
+pycurl.global_init(pycurl.GLOBAL_ALL)
+ao.ao_initialize()
+mpg123.mpg123_init()
+mh = mpg123.mpg123_new(None, None)
+mpg123.mpg123_open_feed(mh)
+
+MPG123_NEW_FORMAT = -11
+MPG123_DONE = -12
+MPG123_OK = 0
+MPG123_NEED_MORE = -10
+
+AO_FMT_NATIVE = 4
+
+BITS = 8
+
+class AOSampleFormat(ctypes.Structure):
+	_fields_ = [("bits", ctypes.c_int),
+				("rate", ctypes.c_int),
+				("channels", ctypes.c_int),
+				("byte_format", ctypes.c_int),
+				("matrix", ctypes.c_char_p)]
+
+aodev = None
+count = 0
+
+def play_stream(buf):
+	global count
+	global aodev
+	mpg123.mpg123_feed(mh, buf, len(buf))
+	done = ctypes.c_int(1)
+	offset = ctypes.c_size_t(0)
+
+	channels = ctypes.c_int(0)
+	encoding = ctypes.c_int(0)
+	rate = ctypes.c_long(0)
+
+	audio = ctypes.c_char_p()
+
+	while done.value > 0:
+		err = mpg123.mpg123_decode_frame(mh, ctypes.pointer(offset), ctypes.pointer(audio), ctypes.pointer(done))
+		if err == MPG123_NEW_FORMAT:
+			mpg123.mpg123_getformat(mh, ctypes.pointer(rate), ctypes.pointer(channels), ctypes.pointer(encoding))
+			fmt = AOSampleFormat()
+			fmt.bits = ctypes.c_int(mpg123.mpg123_encsize(encoding)*BITS)
+			fmt.rate = rate
+			fmt.channels = channels
+			fmt.byte_format = AO_FMT_NATIVE
+			fmt.matrix = 0
+			aodev = ao.ao_open_live(ao.ao_default_driver_id(), ctypes.pointer(fmt), None)
+		elif err == MPG123_OK:
+			ao.ao_play(aodev, audio, done)
+	return len(buf)
+
+def uri_callback(sp, res):
+	global aodev
+	uri = res['uri']
+	
+	curl_obj = pycurl.Curl()
+	curl_obj.setopt(pycurl.WRITEFUNCTION, play_stream)
+	curl_obj.setopt(pycurl.URL, str(uri))
+	curl_obj.perform()
+	curl_obj.cleanup()
+
+	mpg123.mpg123_close(mh)
+	mpg123.mpg123_delete(mh)
+	mpg123.mpg123_exit()
+
+	ao.ao_close(aodev)
+	ao.ao_shutdown()
+
+def track_callback(sp, track):
+	print track.name
+	sp.track_uri(SpotifyUtil.gid2id(track.gid), uri_callback)
+	sp.disconnect()
+
+def login_callback(sp, ok):
+	if ok:
+		uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:track:6NwbeybX6TDtXlpXvnUOZC"
+		sp.metadata_request(uri, track_callback)
+	else:
+		print "Login failed"
+
+if len(sys.argv) < 3:
+	print "Usage: "+sys.argv[0]+" <username> <password> [album URI]"
+else:
+	sp = SpotifyAPI(login_callback)
+	sp.connect(sys.argv[1], sys.argv[2])
