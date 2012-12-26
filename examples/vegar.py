@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-import sys
+import sys; sys.path.append("..")
 import ctypes
 from ctypes import CDLL
-from spotify import SpotifyAPI, SpotifyUtil
+from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 import pycurl
 
 mpg123 = CDLL('libmpg123.so.0')
