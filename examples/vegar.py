@@ -2,12 +2,11 @@
 
 import sys; sys.path.append("..")
 import ctypes
-from ctypes import CDLL
 from spotify_web.spotify import SpotifyAPI
 import pycurl
 
-mpg123 = CDLL('libmpg123.so.0')
-ao = CDLL('libao.so.4')
+mpg123 = ctypes.CDLL('libmpg123.so.0')
+ao = ctypes.CDLL('libao.so.4')
 pycurl.global_init(pycurl.GLOBAL_ALL)
 ao.ao_initialize()
 mpg123.mpg123_init()
