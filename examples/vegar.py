@@ -92,7 +92,9 @@ def track_callback(sp, track):
 def login_callback(sp, ok):
 	if ok:
 		uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:track:6NwbeybX6TDtXlpXvnUOZC"
-		sp.metadata_request(uri, track_callback)
+		track = sp.metadata_request(uri)
+		print track.name, track.duration/1000.0, "seconds"
+		sp.track_uri(track, uri_callback)
 	else:
 		print "Login failed"
 
