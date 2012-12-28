@@ -161,8 +161,7 @@ class Spotify():
 	def imagesFromArray(image_objs):
 		images = {}
 		for image_obj in image_objs:
-			print image_obj.size
-			size = image_obj.width
-			images[size] = "https://d3rt1990lpmkn.cloudfront.net/" + str(size) + "/" + SpotifyUtil.gid2id(image_obj.file_id)
+			size = str(image_obj.width)
+			images[size] = "https://d3rt1990lpmkn.cloudfront.net/" + size + "/" + SpotifyUtil.gid2id(image_obj.file_id)
 
 		return images

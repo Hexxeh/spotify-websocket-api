@@ -21,25 +21,31 @@ def disconnect_sessions():
 		session.logout()
 
 class SpotifyURIHandler(object):
-    def default(self,username = None, password = None, uri = None):
-       	if uri == None or username == None or password == None:
-    		raise cherrypy.HTTPError(400, "A paramater was expected but not supplied.")
+  def default(self,username = None, password = None, uri = None, action = "proxymp3"):
+    if uri == None or username == None or password == None:
+      raise cherrypy.HTTPError(400, "A paramater was expected but not supplied.")
 
-    	spotify = get_or_create_session(username, password)
-    	if spotify == False:
-    		raise cherrypy.HTTPError(403, "Username or password given were incorrect.")
+    spotify = get_or_create_session(username, password)
+    if spotify == False:
+      raise cherrypy.HTTPError(403, "Username or password given were incorrect.")
 
-    	track = spotify.objectFromURI(uri)
-    	if track == None:
-      		raise cherrypy.HTTPError(404, "Could not find a track with that URI.")
-      				
-      	url = track.getFileURL()
-      	if url == False:
-      		raise cherrypy.HTTPError(404, "Could not find a track URL for that URI.")
+    track = spotify.objectFromURI(uri)
+    if track == None:
+      raise cherrypy.HTTPError(404, "Could not find a track with that URI.")
 
-      	raise cherrypy.HTTPRedirect(url)
+    if action == "proxymp3":      
+      url = track.getFileURL()
+      if url == False:
+        raise cherrypy.HTTPError(404, "Could not find a track URL for that URI.")
+    elif action == "proxycover":
+      covers = track.getAlbum().getCovers()
+      url = covers["300"]
+    else:
+      raise cherrypy.HTTPError(400, "An invalid action was requested.")
 
-    default.exposed = True
+    raise cherrypy.HTTPRedirect(url)
+
+  default.exposed = True
 
 cherrypy.engine.subscribe("exit", disconnect_sessions)
 cherrypy.engine.autoreload.unsubscribe()
