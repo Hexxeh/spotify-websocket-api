@@ -258,7 +258,7 @@ class SpotifyAPI():
 			forbidden_str = restriction.countries_forbidden
 			forbidden_countries += [forbidden_str[i:i+2] for i in range(0, len(forbidden_str), 2)]
 
-			allowed = len(allowed_countries) == 0 or self.country in allowed_countries
+			allowed = not restriction.HasField("countries_allowed") or self.country in allowed_countries
 			forbidden = self.country in forbidden_countries and len(forbidden_countries) > 0
 
 			# guessing at names here, corrections welcome
@@ -269,6 +269,15 @@ class SpotifyAPI():
 			}
 
 			applicable = account_type_map[self.account_type] in restriction.catalogue
+
+			# enable this to help debug restriction issues
+			if False:
+				print track
+				print allowed_countries
+				print forbidden_countries
+				print "allowed: "+str(allowed)
+				print "forbidden: "+str(forbidden)
+				print "applicable: "+str(applicable)
 
 			available = allowed == True and forbidden == False and applicable == True
 			if available:
@@ -286,8 +295,7 @@ class SpotifyAPI():
 			return SpotifyUtil.gid2id(track.gid)
 		else:
 			for alternative in track.alternative:
-				track = self.metadata_request(SpotifyUtil.gid2uri("track", alternative.gid))
-				if self.is_track_available(track):
+				if self.is_track_available(alternative):
 					return SpotifyUtil.gid2id(alternative.gid)
 			return False
 
