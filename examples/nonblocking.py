@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 import sys; sys.path.append("..")
 from spotify_web.spotify import SpotifyAPI, SpotifyUtil

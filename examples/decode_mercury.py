@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 import sys; sys.path.append("..")
 import base64
 from spotify_web.proto import mercury_pb2, metadata_pb2

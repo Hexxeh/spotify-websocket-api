@@ -1,7 +1,6 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
-import sys; sys.path.append("..")
-import cherrypy
+import sys, cherrypy; sys.path.append("..")
 from spotify_web.friendly import Spotify
 
 sessions = {}
