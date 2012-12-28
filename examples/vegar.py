@@ -3,7 +3,7 @@
 import sys; sys.path.append("..")
 import ctypes
 from ctypes import CDLL
-from spotify_web.spotify import SpotifyAPI, SpotifyUtil
+from spotify_web.spotify import SpotifyAPI
 import pycurl
 
 mpg123 = CDLL('libmpg123.so.0')
@@ -84,10 +84,6 @@ def uri_callback(sp, res):
 
 	ao.ao_close(ctypes.c_void_p(aodev))
 	ao.ao_shutdown()
-
-def track_callback(sp, track):
-	print track.name
-	sp.track_uri(SpotifyUtil.gid2id(track.gid), uri_callback)
 
 def login_callback(sp, ok):
 	if ok:
