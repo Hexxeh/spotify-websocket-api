@@ -35,24 +35,24 @@ class Logging():
 			print "[ERROR] " + str
 
 class WrapAsync():
+	timeout = 10
+
 	def __init__(self, callback, func, *args):
-		self.data = None
 		self.marker = gevent.event.AsyncResult()
 
 		callback = self.callback if callback == None else [callback, self.callback]
 		func(*args, callback=callback)
 
 	def callback(self, *args):
-		self.marker.set()
-		self.data = args
+		self.marker.set(args)
 
 	def get_data(self):
-		self.marker.get()
+		data = self.marker.get(timeout=self.timeout)
 
-		if len(self.data) > 0 and type(self.data[0] == SpotifyAPI):
-			self.data = self.data[1:]
+		if len(data) > 0 and type(data[0] == SpotifyAPI):
+			data = data[1:]
 
-		return self.data if len(self.data) > 1 else self.data[0]
+		return data if len(data) > 1 else data[0]
 
 class SpotifyClient(WebSocketClient):
 	def set_api(self, api):
@@ -96,8 +96,13 @@ class SpotifyUtil():
 		return uri
 
 	@staticmethod
-	def get_uri_type(uri):	
-		return uri.split(":")[1]
+	def get_uri_type(uri):
+		uri_parts = uri.split(":")
+
+		if len(uri_parts) >=3:
+			return uri.split(":")[1]
+		else:
+			return False
 
 class SpotifyAPI():
 	def __init__(self, login_callback_func = False):
@@ -217,6 +222,8 @@ class SpotifyAPI():
 	def parse_metadata_item(self, content_type, body):
 		if content_type == "vnd.spotify/metadata-album":
 			obj = metadata_pb2.Album()
+		elif content_type == "vnd.spotify/metadata-artist":
+			obj = metadata_pb2.Artist()
 		elif content_type == "vnd.spotify/metadata-track":
 			obj = metadata_pb2.Track()
 		else:
