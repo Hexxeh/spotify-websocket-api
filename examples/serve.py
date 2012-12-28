@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-import sys, cherrypy; sys.path.append("..")
+import sys; sys.path.append("..")
 from spotify_web.friendly import Spotify
+import cherrypy
 
 sessions = {}
 
@@ -39,7 +40,7 @@ class SpotifyURIHandler(object):
         raise cherrypy.HTTPError(404, "Could not find a track URL for that URI.")
     elif action == "proxycover":
       covers = track.getAlbum().getCovers()
-      url = covers["300"]
+      url = covers["640"]
     else:
       raise cherrypy.HTTPError(400, "An invalid action was requested.")
 
@@ -49,4 +50,5 @@ class SpotifyURIHandler(object):
 
 cherrypy.engine.subscribe("exit", disconnect_sessions)
 cherrypy.engine.autoreload.unsubscribe()
+cherrypy.config.update({"environment": "production"})
 cherrypy.quickstart(SpotifyURIHandler())
