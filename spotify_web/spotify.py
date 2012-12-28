@@ -190,8 +190,9 @@ class SpotifyAPI():
 		else:
 			self.logged_in_marker.set()
 
-	def track_uri(self, id, callback = False):
-		args = ["mp3160", id]
+	def track_uri(self, track, callback = False):
+		tid = self.recurse_alternatives(track)
+		args = ["mp3160", tid]
 		if callback == False:
 			data = WrapAsync(None, self.send_command, "sp/track_uri", args).get_data()
 			return data
@@ -224,9 +225,6 @@ class SpotifyAPI():
 
 		obj.ParseFromString(body)
 
-		if content_type == "vnd.spotify/metadata-track":
-			obj = self.recurse_alternatives(obj)
-
 		return obj
 
 	def parse_playlist(self, resp):
@@ -248,22 +246,29 @@ class SpotifyAPI():
 			forbidden_str = restriction.countries_forbidden
 			forbidden_countries += [forbidden_str[i:i+2] for i in range(0, len(forbidden_str), 2)]
 
-			allowed = len(allowed_countries) == 0 or self.country in allowed_countries
+			allowed = (len(allowed_countries) == 0 and len(forbidden_countries) > 0) or self.country in allowed_countries
 			forbidden = self.country in forbidden_countries
 
 			if allowed == True and forbidden == False:
 				break
 
-		return allowed == True and forbidden == False
+		available = allowed == True and forbidden == False
+
+		if available:
+			Logging.notice(SpotifyUtil.gid2uri("track", track.gid) + " is available!")
+		else:
+			Logging.notice(SpotifyUtil.gid2uri("track", track.gid) + " is NOT available!")
+
+		return available
 
 	def recurse_alternatives(self, track):
 		if self.is_track_available(track):
-			return track
+			return SpotifyUtil.gid2id(track.gid)
 		else:
 			for alternative in track.alternative:
-				found = self.recurse_alternatives(self.metadata_request(SpotifyUtil.gid2uri("track", alternative.gid)))
-				if found != False:
-					return found
+				track = self.metadata_request(SpotifyUtil.gid2uri("track", alternative.gid))
+				if self.is_track_available(track):
+					return SpotifyUtil.gid2id(alternative.gid)
 			return False
 
 	def generate_multiget_args(self, metadata_type, requests):

@@ -58,9 +58,9 @@ elif action == "restriction":
 	uri = sys.argv[4] if len(sys.argv) > 4 else "spotify:track:3IKSCoHEblCE60IKr4SVNd"
 
 	track = sp.metadata_request(uri)
-	resp = sp.track_uri(SpotifyUtil.gid2id(track.gid))
+	resp = sp.track_uri(track)
 
-	if uri in resp:
+	if "uri" in resp:
 		print "Track is available!"
 	else:
 		print "Track is NOT available! Double-check this using the official client"

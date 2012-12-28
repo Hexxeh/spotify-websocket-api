@@ -13,10 +13,14 @@ def track_uri_callback(sp, result):
 		print "URL: "+result["uri"]
 	sp.disconnect()
 
+def track_callback(sp, track):
+	sp.track_uri(track, track_uri_callback)
+
 def login_callback(sp, logged_in):
 	if logged_in:
 		uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:track:4a0TeZNKWwoLu4C7H6n95D"
-		sp.track_uri(SpotifyUtil.uri2id(uri), track_uri_callback)
+		track = sp.metadata_request(uri)
+		sp.track_uri(track, track_uri_callback)
 	else:
 		print "There was an error logging in"
 
