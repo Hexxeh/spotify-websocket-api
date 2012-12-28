@@ -2,12 +2,11 @@
 
 import sys; sys.path.append("..")
 import ctypes
-from ctypes import CDLL
-from spotify_web.spotify import SpotifyAPI, SpotifyUtil
+from spotify_web.spotify import SpotifyAPI
 import pycurl
 
-mpg123 = CDLL('libmpg123.so.0')
-ao = CDLL('libao.so.4')
+mpg123 = ctypes.CDLL('libmpg123.so.0')
+ao = ctypes.CDLL('libao.so.4')
 pycurl.global_init(pycurl.GLOBAL_ALL)
 ao.ao_initialize()
 mpg123.mpg123_init()
@@ -76,6 +75,8 @@ def uri_callback(sp, res):
 	curl_obj.perform()
 	curl_obj.cleanup()
 
+	sp.disconnect()
+
 	mpg123.mpg123_close(ctypes.c_void_p(mh))
 	mpg123.mpg123_delete(ctypes.c_void_p(mh))
 	mpg123.mpg123_exit()
@@ -83,15 +84,12 @@ def uri_callback(sp, res):
 	ao.ao_close(ctypes.c_void_p(aodev))
 	ao.ao_shutdown()
 
-def track_callback(sp, track):
-	print track.name
-	sp.track_uri(SpotifyUtil.gid2id(track.gid), uri_callback)
-	sp.disconnect()
-
 def login_callback(sp, ok):
 	if ok:
 		uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:track:6NwbeybX6TDtXlpXvnUOZC"
-		sp.metadata_request(uri, track_callback)
+		track = sp.metadata_request(uri)
+		print track.name, track.duration/1000.0, "seconds"
+		sp.track_uri(track, uri_callback)
 	else:
 		print "Login failed"
 
