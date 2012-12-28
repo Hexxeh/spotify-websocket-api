@@ -29,7 +29,7 @@ if action == "track":
 	print track.name
 	
 elif action == "album":
-	uri = sys.argv[3] if len(sys.argv) > 4 else "spotify:album:3OmHoatMS34vM7ZKb4WCY3"
+	uri = sys.argv[4] if len(sys.argv) > 4 else "spotify:album:3OmHoatMS34vM7ZKb4WCY3"
 
 	album = sp.metadata_request(uri)
 	print album.name+" - "+album.artist[0].name+"\n"
@@ -40,7 +40,7 @@ elif action == "album":
 		print track.name
 
 elif action == "playlists":
-	username = sys.argv[3] if len(sys.argv) > 4 else sp.username
+	username = sys.argv[4] if len(sys.argv) > 4 else sp.username
 
 	playlist_uris = [playlist.uri for playlist in sp.playlists_request(username).contents.items]
 	playlists = [sp.playlist_request (playlist_uri) for playlist_uri in playlist_uris]
@@ -49,7 +49,7 @@ elif action == "playlists":
 		display_playlist(playlist)
 		
 elif action == "playlist":
-	uri = sys.argv[3] if len(sys.argv) > 4 else "spotify:user:topsify:playlist:1QM1qz09ZzsAPiXphF1l4S"
+	uri = sys.argv[4] if len(sys.argv) > 4 else "spotify:user:topsify:playlist:1QM1qz09ZzsAPiXphF1l4S"
 
 	playlist = sp.playlist_request(uri)
 	display_playlist(playlist)
@@ -64,7 +64,7 @@ elif action == "restriction":
 	track = sp.metadata_request(uri)
 	resp = sp.track_uri(track)
 
-	if "uri" in resp:
+	if resp != False and "uri" in resp:
 		print "Track is available!"
 	else:
 		print "Track is NOT available! Double-check this using the official client"
