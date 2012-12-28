@@ -76,6 +76,8 @@ def uri_callback(sp, res):
 	curl_obj.perform()
 	curl_obj.cleanup()
 
+	sp.disconnect()
+
 	mpg123.mpg123_close(ctypes.c_void_p(mh))
 	mpg123.mpg123_delete(ctypes.c_void_p(mh))
 	mpg123.mpg123_exit()
@@ -86,7 +88,6 @@ def uri_callback(sp, res):
 def track_callback(sp, track):
 	print track.name
 	sp.track_uri(SpotifyUtil.gid2id(track.gid), uri_callback)
-	sp.disconnect()
 
 def login_callback(sp, ok):
 	if ok:
