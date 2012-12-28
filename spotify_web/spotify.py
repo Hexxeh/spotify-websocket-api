@@ -176,7 +176,7 @@ class SpotifyAPI():
 		if self.login_callback != False:
 			self.do_login_callback(True)
 		else:
-			self.logged_in_marker.set()
+			self.logged_in_marker.set(True)
 
 	def logged_in(self, sp, resp):
 		self.user_info_request(self.populate_userdata_callback)
@@ -193,7 +193,7 @@ class SpotifyAPI():
 		if self.login_callback != False:
 			gevent.spawn(self.login_callback, self, result)
 		else:
-			self.logged_in_marker.set()
+			self.logged_in_marker.set(False)
 
 	def track_uri(self, track, callback = False):
 		tid = self.recurse_alternatives(track)
@@ -577,7 +577,7 @@ class SpotifyAPI():
 			else:
 				break
 
-	def connect(self, username, password):
+	def connect(self, username, password, timeout = 10):
 		if self.settings == None:
 			 if self.auth(username, password) == False:
 			 	return False
@@ -594,12 +594,10 @@ class SpotifyAPI():
 			if self.login_callback != False:
 				gevent.joinall(self.greenlets)
 			else:
-				self.logged_in_marker.get()
+				return self.logged_in_marker.get(timeout=timeout)
 		except:
 			self.disconnect()
-
-	def block(self):
-		gevent.joinall(self.greenlets)
+			return False
 
 	def disconnect(self):
 		self.disconnecting = True
