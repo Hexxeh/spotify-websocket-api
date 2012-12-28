@@ -1,0 +1,179 @@
+#!/usr/bin/env python
+
+import sys; sys.path.append("..")
+from spotify_web.friendly import Spotify
+from mpd import MPDClient
+import os, subprocess, gevent
+from gevent.fileobject import FileObject
+
+current_playlist = None
+client = MPDClient()
+uri_resolver = None
+
+def header():
+	os.system("clear")
+	print """                                   _    ___       
+                               _  (_)  / __)      
+  ____ _____  ___ ____   ___ _| |_ _ _| |__ _   _ 
+ / ___) ___ |/___)  _ \ / _ (_   _) (_   __) | | |
+| |   | ____|___ | |_| | |_| || |_| | | |  | |_| |
+|_|   |_____|___/|  __/ \___/  \__)_| |_|   \__  |
+                 |_|                       (____/ 
+
+	"""
+
+def display_current_playlist():
+	if current_playlist.getNumTracks() == 0:
+		print "No tracks currently in playlist"
+	else:
+		print current_playlist.getName()+"\n"
+		index = 1
+		tracks = current_playlist.getTracks()
+		for track in tracks:
+			print "["+str(index)+"] "+track.getName()
+			index += 1
+
+def set_current_playlist(playlist):
+	global current_playlist
+	current_playlist = playlist
+	display_current_playlist()
+
+
+def command_list(*args):
+	global rootlist
+	global current_playlist
+
+	rootlist = spotify.getPlaylists()
+
+	if len(*args) == 0 or args[0][0] == "":
+		print "Playlists\n"
+		index = 1
+		for playlist in rootlist:
+			print " ["+str(index)+"] "+playlist.getName()
+			index += 1
+	else:
+		if len(rootlist) >= int(args[0][0]):
+			playlist_index = int(args[0][0])-1
+			set_current_playlist(rootlist[playlist_index])
+
+def command_uri(*args):
+	if len(*args) > 0:
+		uri = args[0][0]
+
+		obj = spotify.objectFromURI(uri)
+		if obj != None:
+			set_current_playlist(obj)
+
+def command_album(*args):
+	if args[0][0] == "" or current_playlist == None:
+		return
+
+	index = int(args[0][0])-1
+	if current_playlist.getNumTracks() < index:
+		return
+
+	album = current_playlist.getTracks()[index].getAlbum()
+	set_current_playlist(album)
+
+def command_artist(*args):
+	if args[0][0] == "" or current_playlist == None:
+		return
+
+	index = int(args[0][0])-1
+	if current_playlist.getNumTracks() < index:
+		return
+
+	album = current_playlist.getTracks()[index].getArtist()
+	set_current_playlist(album)
+
+def command_play(*args):
+	if args[0][0] == "":
+		return
+
+	client.clear()
+	for track in current_playlist.getTracks():
+		client.add("http://localhost:8080/?uri="+track.getURI())
+	client.play(int(args[0][0])-1)
+
+	display_current_playlist()
+
+def command_stop(*args):
+	client.stop()
+	display_current_playlist()
+
+def command_next(*args):
+	client.next()
+	display_current_playlist()
+
+def command_prev(*args):
+	if client.status()["song"] != "0":
+		client.previous()
+	else:
+		client.stop()
+	display_current_playlist()
+
+def command_info(*args):
+	print "Username: "+spotify.api.username
+	print "Account type: "+spotify.api.account_type
+	print "Country: "+spotify.api.country
+	print "Connected to "+spotify.api.settings["aps"]["ws"][0].replace("wss://","").replace(":443", "")
+
+def command_help(*args):
+	for k, v in command_map.items():
+		print k+"\t\t"+v[1]
+
+def command_quit(*args):
+	spotify.logout()
+
+def command_current_playlist(*args):
+	display_current_playlist()
+
+command_map = {
+	"artist": (command_artist, "view the artist for a specific track"),
+	"album":  (command_album, "view the album for a specific track"),
+	"stop": (command_stop, "stops any currently playing track"),
+	"play": (command_play, "plays the track with given index"),
+	"next": (command_next, "plays the next track in the current playlist"),
+	"prev": (command_prev, "plays the previous track in the currentl playlist"),
+	"current": (command_current_playlist, "shows the current playlist we're playing"),
+	"uri": (command_uri, "lists metadata for a URI (album)"),
+	"list": (command_list, "lists your rootlist or a playlist"),
+	"info": (command_info, "shows account information"),
+	"help": (command_help, "shows help information"),
+	"quit": (command_quit, "quits the application"),
+}
+
+def command_loop():
+	header()
+	command_help()
+	sys.stdin = FileObject(sys.stdin)
+	while spotify.api.disconnecting == False:
+		sys.stdout.write("\n> ")
+		sys.stdout.flush()
+		command = raw_input().split(" ")
+		command_name = command[0]
+
+		header()
+		if command_name in command_map:
+			command_map[command_name][0](command[1:])
+		else:
+			command_help()
+
+
+if len(sys.argv) < 2:
+	print "Usage: "+sys.argv[0]+" <username> <password>"
+	sys.exit(1)
+
+spotify = Spotify(sys.argv[1], sys.argv[2])
+if spotify:
+	os.system("kill `pgrep -f respotify-helper`")
+	uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", sys.argv[1], sys.argv[2]])
+	client.connect(host="localhost", port="6600")
+	command_loop()
+	os.system("clear")
+	client.clear()
+	client.disconnect()
+	uri_resolver.kill()
+else:
+	print "Login failed"
+	sys.exit(1)
