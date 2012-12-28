@@ -72,7 +72,7 @@ def play_track(uri):
 	curl_obj.setopt(pycurl.WRITEFUNCTION, play_stream)
 	curl_obj.setopt(pycurl.URL, str(uri))
 	curl_obj.perform()
-	curl_obj.cleanup()
+	curl_obj.close()
 
 	mpg123.mpg123_close(ctypes.c_void_p(mh))
 	mpg123.mpg123_delete(ctypes.c_void_p(mh))
