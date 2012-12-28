@@ -2,7 +2,7 @@
 
 import sys; sys.path.append("..")
 import ctypes
-from spotify_web.spotify import SpotifyAPI
+from spotify_web.friendly import Spotify
 import pycurl
 
 mpg123 = ctypes.CDLL('libmpg123.so.0')
@@ -65,17 +65,14 @@ def play_stream(buf):
 			ao.ao_play(ctypes.c_void_p(aodev), audio, done)
 	return len(buf)
 
-def uri_callback(sp, res):
+def play_track(uri):
 	global aodev
-	uri = res['uri']
 
 	curl_obj = pycurl.Curl()
 	curl_obj.setopt(pycurl.WRITEFUNCTION, play_stream)
 	curl_obj.setopt(pycurl.URL, str(uri))
 	curl_obj.perform()
 	curl_obj.cleanup()
-
-	sp.disconnect()
 
 	mpg123.mpg123_close(ctypes.c_void_p(mh))
 	mpg123.mpg123_delete(ctypes.c_void_p(mh))
@@ -84,17 +81,18 @@ def uri_callback(sp, res):
 	ao.ao_close(ctypes.c_void_p(aodev))
 	ao.ao_shutdown()
 
-def login_callback(sp, ok):
-	if ok:
-		uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:track:6NwbeybX6TDtXlpXvnUOZC"
-		track = sp.metadata_request(uri)
-		print track.name, track.duration/1000.0, "seconds"
-		sp.track_uri(track, uri_callback)
-	else:
-		print "Login failed"
-
 if len(sys.argv) < 3:
-	print "Usage: "+sys.argv[0]+" <username> <password> [album URI]"
+	print "Usage: "+sys.argv[0]+" <username> <password> [URI]"
 else:
-	sp = SpotifyAPI(login_callback)
-	sp.connect(sys.argv[1], sys.argv[2])
+	sp = Spotify(sys.argv[1], sys.argv[2])
+	if sp.logged_in() == False:
+		print "Login failed"
+	else:
+		uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:track:6NwbeybX6TDtXlpXvnUOZC"
+		obj = sp.objectFromURI(uri)
+		if obj.uri_type == "track":
+			print obj.getName(), obj.getDuration()/1000.0, "seconds"
+			play_track(obj.getFileURL())
+		else:
+			print "No support for yet for", obj.uri_type
+		sp.logout()
