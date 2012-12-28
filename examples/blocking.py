@@ -54,6 +54,10 @@ elif action == "playlist":
 	playlist = sp.playlist_request(uri)
 	display_playlist(playlist)
 
+elif action == "tracks_toplist":
+	top_tracks = sp.toplist_request("tracks")
+	print top_tracks
+
 elif action == "restriction":
 	uri = sys.argv[4] if len(sys.argv) > 4 else "spotify:track:3IKSCoHEblCE60IKr4SVNd"
 

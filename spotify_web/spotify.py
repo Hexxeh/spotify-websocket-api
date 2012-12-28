@@ -7,7 +7,7 @@ import base64, binascii, json, pprint, re, requests, string, sys, time, gevent
 from .proto import mercury_pb2, metadata_pb2
 from .proto import playlist4changes_pb2, playlist4content_pb2
 from .proto import playlist4issues_pb2, playlist4meta_pb2
-from .proto import playlist4ops_pb2
+from .proto import playlist4ops_pb2, toplist_pb2
 
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -234,6 +234,12 @@ class SpotifyAPI():
 
 		return obj
 
+	def parse_toplist(self, resp):
+		obj = toplist_pb2.Toplist()
+		res = base64.decodestring(resp[1])
+		obj.ParseFromString(res)
+		return obj
+
 	def parse_playlist(self, resp):
 		obj = playlist4changes_pb2.ListDump()
 		res = base64.decodestring(resp[1])
@@ -243,8 +249,7 @@ class SpotifyAPI():
 	def is_track_available(self, track):
 		allowed_countries = []
 		forbidden_countries = []
-		allowed = False
-		forbidden = False
+		available = False
 
 		for restriction in track.restriction:
 			allowed_str = restriction.countries_allowed
@@ -253,13 +258,21 @@ class SpotifyAPI():
 			forbidden_str = restriction.countries_forbidden
 			forbidden_countries += [forbidden_str[i:i+2] for i in range(0, len(forbidden_str), 2)]
 
-			allowed = (len(allowed_countries) == 0 and len(forbidden_countries) > 0) or self.country in allowed_countries
-			forbidden = self.country in forbidden_countries
+			allowed = len(allowed_countries) == 0 or self.country in allowed_countries
+			forbidden = self.country in forbidden_countries and len(forbidden_countries) > 0
 
-			if allowed == True and forbidden == False:
+			# guessing at names here, corrections welcome
+			account_type_map = {
+				"premium": 1,
+				"unlimited": 1,
+				"free": 0
+			}
+
+			applicable = account_type_map[self.account_type] in restriction.catalogue
+
+			available = allowed == True and forbidden == False and applicable == True
+			if available:
 				break
-
-		available = allowed == True and forbidden == False
 
 		if available:
 			Logging.notice(SpotifyUtil.gid2uri("track", track.gid) + " is available!")
@@ -332,6 +345,24 @@ class SpotifyAPI():
 		else:
 			callback_data[0](self, obj)
 
+	def toplist_request(self, toplist_type, user = None, callback = False):
+		if user == None:
+			user = self.username
+
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = "GET"
+		mercury_request.uri = "hm://toplist/toplist/user/"+user+"?type="+toplist_type
+		req = base64.encodestring(mercury_request.SerializeToString())
+
+		args = [0, req]
+
+		if callback == False:
+			data = WrapAsync(self.toplist_response, self.send_command, "sp/hm_b64", args).get_data()
+			return data
+		else:
+			callback = [callback] if type(callback) != list else callback
+			self.send_command("sp/hm_b64", args, [self.toplist_response]+callback)
+
 	def playlists_request(self, user, fromnum = 0, num = 100, callback = False):
 		if num > 100:
 			Logging.error("You may only request up to 100 playlists at once")
@@ -376,6 +407,14 @@ class SpotifyAPI():
 		else:
 			callback = [callback] if type(callback) != list else callback
 			self.send_command("sp/hm_b64", args, [self.playlist_response]+callback)
+
+	def toplist_response(self, sp, resp, callback_data):
+		print resp
+		obj = self.parse_toplist(resp)
+		if len(callback_data) > 1:
+			callback_data[0](self, obj, callback_data[1:])
+		else:
+			callback_data[0](self, obj)
 
 	def playlist_response(self, sp, resp, callback_data):
 		obj = self.parse_playlist(resp)
