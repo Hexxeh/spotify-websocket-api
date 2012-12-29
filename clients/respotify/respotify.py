@@ -39,10 +39,8 @@ def display_playlist(playlist = None):
 		tracks = playlist.getTracks()
 		for track in tracks:
 			status 
-			if playlist == playing_playlist and index == playing_index:
-				print " * ["+str(index)+"] "+track.getName()
-			else:
-				print "   ["+str(index)+"] "+track.getName()
+			prefix = " * " if playlist == playing_playlist and index == playing_index else "   "
+			print prefix+"["+str(index)+"] "+track.getName() + " - " + track.getArtist(nameOnly = True)
 			index += 1
 
 def set_current_playlist(playlist):

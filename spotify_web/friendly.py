@@ -201,7 +201,12 @@ class Spotify():
 	@Cache
 	def getPlaylists(self, username = None):
 		username = self.api.username if username == None else username
-		return [self.objectFromURI(playlist.uri) for playlist in self.api.playlists_request(username).contents.items]
+		playlist_uris = []
+		if username == self.api.username:
+			playlist_uris += ["spotify:user:"+username+":starred"]
+
+		playlist_uris += [playlist.uri for playlist in self.api.playlists_request(username).contents.items]
+		return [self.objectFromURI(playlist_uri) for playlist_uri in playlist_uris]
 
 	def search(self, query):
 		return self.api.search_request(query)
