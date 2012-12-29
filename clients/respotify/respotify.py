@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-import sys; sys.path.append("..")
+import sys; sys.path.append("../..")
 from spotify_web.friendly import Spotify
 from mpd import MPDClient
 import os, subprocess, gevent
 from gevent.fileobject import FileObject
 
+playing_playlist = None
 current_playlist = None
 client = MPDClient()
 uri_resolver = None
@@ -22,22 +23,32 @@ def header():
 
 	"""
 
-def display_current_playlist():
-	if current_playlist.getNumTracks() == 0:
+def display_playlist(playlist = None):
+	if current_playlist == None and playlist == None:
+		return
+
+	playlist = current_playlist if playlist == None else playlist
+
+	if playlist.getNumTracks() == 0:
 		print "No tracks currently in playlist"
 	else:
-		print current_playlist.getName()+"\n"
+		print playlist.getName()+"\n"
+		status = client.status()
+		playing_index = int(status["song"])+1 if "song" in status else -1
 		index = 1
-		tracks = current_playlist.getTracks()
+		tracks = playlist.getTracks()
 		for track in tracks:
-			print "["+str(index)+"] "+track.getName()
+			status 
+			if playlist == playing_playlist and index == playing_index:
+				print " * ["+str(index)+"] "+track.getName()
+			else:
+				print "   ["+str(index)+"] "+track.getName()
 			index += 1
 
 def set_current_playlist(playlist):
 	global current_playlist
 	current_playlist = playlist
-	display_current_playlist()
-
+	display_playlist()
 
 def command_list(*args):
 	global rootlist
@@ -90,27 +101,29 @@ def command_play(*args):
 	if args[0][0] == "":
 		return
 
+	global playing_playlist
+	playing_playlist = current_playlist
 	client.clear()
 	for track in current_playlist.getTracks():
 		client.add("http://localhost:8080/?uri="+track.getURI())
 	client.play(int(args[0][0])-1)
 
-	display_current_playlist()
+	display_playlist()
 
 def command_stop(*args):
 	client.stop()
-	display_current_playlist()
+	display_playlist()
 
 def command_next(*args):
 	client.next()
-	display_current_playlist()
+	display_playlist()
 
 def command_prev(*args):
 	if client.status()["song"] != "0":
 		client.previous()
 	else:
-		client.stop()
-	display_current_playlist()
+		command_stop()
+	display_playlist()
 
 def command_info(*args):
 	print "Username: "+spotify.api.username
@@ -126,7 +139,7 @@ def command_quit(*args):
 	spotify.logout()
 
 def command_current_playlist(*args):
-	display_current_playlist()
+	display_playlist(playing_playlist)
 
 command_map = {
 	"artist": (command_artist, "view the artist for a specific track"),
@@ -134,7 +147,7 @@ command_map = {
 	"stop": (command_stop, "stops any currently playing track"),
 	"play": (command_play, "plays the track with given index"),
 	"next": (command_next, "plays the next track in the current playlist"),
-	"prev": (command_prev, "plays the previous track in the currentl playlist"),
+	"prev": (command_prev, "plays the previous track in the current playlist"),
 	"current": (command_current_playlist, "shows the current playlist we're playing"),
 	"uri": (command_uri, "lists metadata for a URI (album)"),
 	"list": (command_list, "lists your rootlist or a playlist"),

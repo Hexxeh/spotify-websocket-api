@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys; sys.path.append("..")
+import sys; sys.path.append("../..")
 from spotify_web.friendly import Spotify
 import cherrypy
 from gevent import wsgi
