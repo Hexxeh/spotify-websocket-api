@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
 import sys; sys.path.append("../..")
-import os, subprocess, gevent
 from spotify_web.friendly import Spotify
-from mpd import MPDClient
-from threading import Lock
 from gevent.fileobject import FileObject
+from threading import Lock
+from mpd import MPDClient
+import os, subprocess, gevent
 
 playing_playlist = None
 current_playlist = None
