@@ -35,7 +35,7 @@ class Logging():
 			print "[ERROR] " + str
 
 class WrapAsync():
-	timeout = 10
+	timeout = 5
 
 	def __init__(self, callback, func, *args):
 		self.marker = gevent.event.AsyncResult()
@@ -259,9 +259,13 @@ class SpotifyAPI():
 
 	def parse_playlist(self, resp):
 		obj = playlist4changes_pb2.ListDump()
-		res = base64.decodestring(resp[1])
-		obj.ParseFromString(res)
-		return obj
+		try:
+			res = base64.decodestring(resp[1])
+			obj.ParseFromString(res)
+			return obj
+		except:
+			print resp
+			return False
 
 	def is_track_available(self, track):
 		allowed_countries = []

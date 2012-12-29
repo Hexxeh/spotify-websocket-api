@@ -1,15 +1,31 @@
 #!/usr/bin/env python
 
 import sys; sys.path.append("../..")
+import os, subprocess, gevent
 from spotify_web.friendly import Spotify
 from mpd import MPDClient
-import os, subprocess, gevent
+from threading import Lock
 from gevent.fileobject import FileObject
 
 playing_playlist = None
 current_playlist = None
-client = MPDClient()
 uri_resolver = None
+
+class LockableMPDClient(MPDClient):
+    def __init__(self, use_unicode=False):
+        super(LockableMPDClient, self).__init__()
+        self.use_unicode = use_unicode
+        self._lock = Lock()
+    def acquire(self):
+        self._lock.acquire()
+    def release(self):
+        self._lock.release()
+    def __enter__(self):
+        self.acquire()
+    def __exit__(self, type, value, traceback):
+        self.release()
+
+client = LockableMPDClient()
 
 def header():
 	os.system("clear")
@@ -33,7 +49,8 @@ def display_playlist(playlist = None):
 		print "No tracks currently in playlist"
 	else:
 		print playlist.getName()+"\n"
-		status = client.status()
+		with client:
+			status = client.status()
 		playing_index = int(status["song"])+1 if "song" in status else -1
 		index = 1
 		tracks = playlist.getTracks()
@@ -61,9 +78,12 @@ def command_list(*args):
 			print " ["+str(index)+"] "+playlist.getName()
 			index += 1
 	else:
-		if len(rootlist) >= int(args[0][0]):
-			playlist_index = int(args[0][0])-1
-			set_current_playlist(rootlist[playlist_index])
+		try:
+			if len(rootlist) >= int(args[0][0]):
+				playlist_index = int(args[0][0])-1
+				set_current_playlist(rootlist[playlist_index])
+		except:
+			command_list([])
 
 def command_uri(*args):
 	if len(*args) > 0:
@@ -99,28 +119,37 @@ def command_play(*args):
 	if args[0][0] == "":
 		return
 
+	try:
+		play_index = int(args[0][0])-1
+	except:
+		return
+
 	global playing_playlist
 	playing_playlist = current_playlist
-	client.clear()
-	for track in current_playlist.getTracks():
-		client.add("http://localhost:8080/?uri="+track.getURI())
-	client.play(int(args[0][0])-1)
+	with client:
+		client.clear()
+		for track in current_playlist.getTracks():
+			client.add("http://localhost:8080/?uri="+track.getURI())
+		client.play(play_index)
 
 	display_playlist()
 
 def command_stop(*args):
-	client.stop()
+	with client:
+		client.stop()
 	display_playlist()
 
 def command_next(*args):
-	client.next()
+	with client:
+		client.next()
 	display_playlist()
 
 def command_prev(*args):
-	if client.status()["song"] != "0":
-		client.previous()
-	else:
-		command_stop()
+	with client:
+		if client.status()["song"] != "0":
+			client.previous()
+		else:
+			command_stop()
 	display_playlist()
 
 def command_info(*args):
@@ -170,6 +199,11 @@ def command_loop():
 		else:
 			command_help()
 
+def heartbeat_handler():
+	while client != None:
+		with client:
+			client.status()
+		gevent.sleep(15)
 
 if len(sys.argv) < 2:
 	print "Usage: "+sys.argv[0]+" <username> <password>"
@@ -177,13 +211,17 @@ if len(sys.argv) < 2:
 
 spotify = Spotify(sys.argv[1], sys.argv[2])
 if spotify:
-	os.system("kill `pgrep -f respotify-helper`")
+	os.system("kill `pgrep -f respotify-helper` &> /dev/null")
 	uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", sys.argv[1], sys.argv[2]])
-	client.connect(host="localhost", port="6600")
+	with client:
+		client.connect(host="localhost", port="6600")
+	gevent.spawn(heartbeat_handler)
 	command_loop()
 	os.system("clear")
-	client.clear()
-	client.disconnect()
+	with client:
+		client.clear()
+		client.disconnect()
+		client = None
 	uri_resolver.kill()
 else:
 	print "Login failed"
