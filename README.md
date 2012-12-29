@@ -33,7 +33,7 @@ Once you've installed these, you can run the client like this:
 
 <pre>
 cd clients/respotify
-./respotify <username> <password>
+./respotify.py &lt;username&gt; &lt;password&gt;
 
                                    _    ___       
                                _  (_)  / __)      
@@ -55,7 +55,7 @@ list		lists your rootlist or a playlist
 uri		lists metadata for a URI (album)
 next		plays the next track in the current playlist
 current		shows the current playlist we're playing
-prev		plays the previous track in the currentl playlist
+prev		plays the previous track in the current playlist
 
 >
 </pre>
