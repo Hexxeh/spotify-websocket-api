@@ -64,9 +64,6 @@ class SpotifyClient(WebSocketClient):
 	def opened(self):
 		self.api_object.login()
 
-	def closed(self, code, reason=None):
-		print "closed!",code, reason
-
 class SpotifyUtil():
 	@staticmethod
 	def gid2id(gid):
