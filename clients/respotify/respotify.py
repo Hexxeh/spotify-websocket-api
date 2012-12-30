@@ -56,7 +56,7 @@ def display_playlist(playlist = None):
 		tracks = playlist.getTracks()
 		for track in tracks:
 			status 
-			prefix = " * " if playlist == playing_playlist and index == playing_index else "   "
+			prefix = " * " if playlist == playing_playlist and index == playing_index and status["state"] == "play" else "   "
 			print prefix+"["+str(index)+"] "+track.getName() + " - " + track.getArtist(nameOnly = True)
 			index += 1
 
@@ -146,10 +146,12 @@ def command_next(*args):
 
 def command_prev(*args):
 	with client:
-		if client.status()["song"] != "0":
+		status = client.status()
+	if "song" in status:
+		if status["song"] != "0":
 			client.previous()
-		else:
-			command_stop()
+		elif status["state"] == "play":
+			client.stop()
 	display_playlist()
 
 def command_info(*args):
@@ -188,6 +190,8 @@ def command_loop():
 	command_help()
 	sys.stdin = FileObject(sys.stdin)
 	while spotify.api.disconnecting == False:
+		with client:
+			print client.status()
 		sys.stdout.write("\n> ")
 		sys.stdout.flush()
 		command = raw_input().split(" ")
