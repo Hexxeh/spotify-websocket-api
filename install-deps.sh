@@ -16,6 +16,5 @@ dpkg -i python$VER-pysendfile_2.0.0_i386.deb
 tar -xf web.py-0.37.tar.gz && cd web.py-0.37 && $PYTHON setup.py -q install && cd -
 if [ "x$VER" = "x2.7" ]; then pip install --use-mirrors -q pep8; fi
 cython --version
-$PYTHON -c 'import greenlet; print greenlet, greenlet.__version__; import psycopg2; print psycopg2, psycopg2.__version__; import web; print web, web.__version__'
-
+python$VER -c 'import greenlet; print greenlet, greenlet.__version__; import psycopg2; print psycopg2, psycopg2.__version__; import web; print web, web.__version__'
 pip install -r requirements.txt --upgrade
