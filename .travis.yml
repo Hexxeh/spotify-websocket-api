@@ -8,4 +8,4 @@ env:
 install:
  - deactivate
  - sudo -E ./install-deps.sh
-script: python$VER test.py $USERNAME $PASSWORD
+script: python$VER test.py

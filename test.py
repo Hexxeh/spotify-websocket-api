@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, unittest
+import os, sys, unittest
 from spotify_web.friendly import Spotify
 
 class SpotifyTest(unittest.TestCase):
@@ -31,11 +31,9 @@ class SpotifyTest(unittest.TestCase):
 			self.assertEqual(reference["album"], track.getAlbum(nameOnly = True))
 
 if __name__ == '__main__':
-	if len(sys.argv) < 3:
-		print "Usage: test.py <username> <password>"
+	if "USERNAME" not in os.environ or "PASSWORD" not in os.environ:
+		print "Missing USERNAME/PASSWORD environment variables"
 		sys.exit(1)
-
-	USERNAME = sys.argv[1]
-	PASSWORD = sys.argv[2]
-	sys.argv = sys.argv[2:]
+	USERNAME = os.environ["USERNAME"]
+	PASSWORD = os.environ["PASSWORD"]
 	unittest.main()
