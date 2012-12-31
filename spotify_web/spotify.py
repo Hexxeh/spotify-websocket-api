@@ -102,7 +102,9 @@ class SpotifyUtil():
 	def get_uri_type(uri):
 		uri_parts = uri.split(":")
 
-		if len(uri_parts) >=5:
+		if len(uri_parts) >= 3 and uri_parts[1] == "local":
+			return "local"
+		elif len(uri_parts) >=5:
 			return uri_parts[3]
 		elif len(uri_parts) >=4 and uri_parts[3] == "starred":
 			return "playlist"
@@ -113,8 +115,7 @@ class SpotifyUtil():
 
 	@staticmethod
 	def is_local(uri):
-		mask = "spotify:local:"
-		return mask in uri
+		return SpotifyUtil.get_uri_type(uri) == "local"
 
 class SpotifyAPI():
 	def __init__(self, login_callback_func = False):
@@ -223,6 +224,9 @@ class SpotifyAPI():
 		header.ParseFromString(base64.decodestring(resp[0]))
 
 		if header.status_message == "vnd.spotify/mercury-mget-reply":
+			if len(resp) < 2:
+				return False
+
 			mget_reply = mercury_pb2.MercuryMultiGetReply()
 			mget_reply.ParseFromString(base64.decodestring(resp[1]))
 			items = []

@@ -76,10 +76,10 @@ class SpotifyTrack(SpotifyMetadataObject):
 		if nameOnly:
 			return self.obj.album.name
 		else:
-			return self.spotify.objectFromInternalObj("album", self.obj.album)
+			return self.spotify.objectFromInternalObj("album", self.obj.album)[0]
 
 	@Cache
-	def getArtist(self, nameOnly = False):
+	def getArtists(self, nameOnly = False):
 		return self.spotify.objectFromInternalObj("artist", self.obj.artist, nameOnly)
 
 class SpotifyArtist(SpotifyMetadataObject):
@@ -122,7 +122,7 @@ class SpotifyAlbum(SpotifyMetadataObject):
 		return self.obj.label
 
 	@Cache
-	def getArtist(self, nameOnly = False):
+	def getArtists(self, nameOnly = False):
 		return self.spotify.objectFromInternalObj("artist", self.obj.artist, nameOnly)
 
 	def getCovers(self):
@@ -151,6 +151,8 @@ class SpotifyAlbum(SpotifyMetadataObject):
 		return self.spotify.objectFromInternalObj("track", track_objs)
 
 class SpotifyPlaylist(SpotifyObject):
+	uri_type = "playlist"
+
 	def __init__(self, spotify, uri):
 		self.spotify = spotify
 		self.obj = spotify.api.playlist_request(uri)
@@ -175,18 +177,38 @@ class SpotifyPlaylist(SpotifyObject):
 	@Cache
 	def getTracks(self):
 		track_uris = [item.uri for item in self.obj.contents.items]
-		tracks = self.spotify.objectFromURI(track_uris)
+		tracks = self.spotify.objectFromURI(track_uris, asArray = True)
 
 		if self.obj.contents.truncated == True:
 			tracks_per_call = 100
 			start = tracks_per_call
 			while start < self.getNumTracks():
 				track_uris = [item.uri for item in self.spotify.api.playlist_request(self.uri, start).contents.items]
-				tracks += self.spotify.objectFromURI(track_uris)
+				tracks += self.spotify.objectFromURI(track_uris, asArray = True)
 				start += tracks_per_call
 
 		return tracks
 
+class SpotifyUserlist():
+	def __init__(self, spotify, name, tracks):
+		self.spotify = spotify
+		self.name = name
+		self.tracks = tracks
+
+	def getID(self):
+		return None
+
+	def getURI(self):
+		return None
+
+	def getName(self):
+		return self.name
+
+	def getNumTracks(self):
+		return len(self.tracks)
+
+	def getTracks(self):
+		return self.tracks
 class SpotifySearch():
 	def __init__(self, spotify, query, query_type = "all", max_results = 50, offset = 0):
 		self.spotify = spotify
@@ -194,31 +216,54 @@ class SpotifySearch():
 		self.query_type = query_type
 		self.max_results = max_results
 		self.offset = offset
-		xml = self.spotify.api.search_request(query, query_type=query_type, max_results=max_results, offset=offset)
+		self.populate()
+
+	def populate(self):
+		xml = self.spotify.api.search_request(self.query, query_type=self.query_type, max_results=self.max_results, offset=self.offset)
 		xml = xml[38:] # trim UTF8 declaration
 		self.result = etree.fromstring(xml)
+
+		# invalidate cache
+		self._Cache__cache = {}
+
+	def next(self):
+		self.offset += self.max_results
+		self.populate()
+
+	def prev(self):
+		self.offset = self.offset - self.max_results if self.offset >= self.max_results else 0
+		self.populate()
 
 	def getName(self):
 		return "Search: "+self.query
 
 	@Cache
 	def getTracks(self):
-		return self.getObjs(self.result, "track")
+		return self.getObjByID(self.result, "track")
 
 	def getNumTracks(self):
 		return len(self.getTracks())
 
 	@Cache
 	def getAlbums(self):
-		return self.getObjs(self.result, "album")
+		return self.getObjByID(self.result, "album")
 
 	@Cache
 	def getArtists(self):
-		return self.getObjs(self.result, "artist")
+		return self.getObjByID(self.result, "artist")
 
-	def getObjs(self, result, obj_type):
+	@Cache
+	def getPlaylists(self):
+		return self.getObjByURI(self.result, "playlist")
+
+	def getObjByID(self, result, obj_type):
 		ids = [elem[0].text for elem in list(result.find(obj_type+"s"))]
 		objs = self.spotify.objectFromID(obj_type, ids)
+		return objs
+
+	def getObjByURI(self, result, obj_type):
+		uris = [elem[0].text for elem in list(result.find(obj_type+"s"))]
+		objs = self.spotify.objectFromURI(uris, asArray = True)
 		return objs
 
 class Spotify():
@@ -254,7 +299,7 @@ class Spotify():
 		except:
 			uris = SpotifyUtil.gid2uri(object_type, objs.gid)
 
-		return self.objectFromURI(uris)
+		return self.objectFromURI(uris, asArray = True)
 
 	def objectFromID(self, object_type, ids):
 		try:
@@ -262,15 +307,15 @@ class Spotify():
 		except:
 			uris = SpotifyUtil.id2uri(object_type, ids)
 
-		return self.objectFromURI(uris)
+		return self.objectFromURI(uris, asArray = True)
 
-	def objectFromURI(self, uris):
+	def objectFromURI(self, uris, asArray = False):
 		if self.logged_in() == False:
 			return False
 
 		uris = [uris] if type(uris) != list else uris
 		if len(uris) == 0:
-			return []
+			return [] if asArray else None
 
 		uri_type = SpotifyUtil.get_uri_type(uris[0])
 		if uri_type == False:
@@ -281,6 +326,7 @@ class Spotify():
 			uris = [uri for uri in uris if not SpotifyUtil.is_local(uri)]
 			objs = self.api.metadata_request(uris)
 			objs = [objs] if type(objs) != list else objs
+			objs = [obj for obj in objs if obj != False]
 			if uri_type == "track":
 				results = [SpotifyTrack(self, obj=obj) for obj in objs]
 			elif uri_type == "album":
@@ -290,10 +336,13 @@ class Spotify():
 		else:
 			return None
 
-		if len(results) == 1:
-			return results[0]
-		else:
-			return results
+		if asArray == False:
+			if len(results) == 1:
+				results = results[0]
+			elif len(results) == 0:
+				return None
+
+		return results
 
 	@staticmethod
 	def imagesFromArray(image_objs):

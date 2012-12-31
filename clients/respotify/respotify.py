@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys; sys.path.append("../..")
-from spotify_web.friendly import Spotify
+from spotify_web.friendly import Spotify, SpotifyTrack, SpotifyUserlist
 from gevent.fileobject import FileObject
 from threading import Lock
 from mpd import MPDClient
@@ -57,7 +57,7 @@ def display_playlist(playlist = None):
 		for track in tracks:
 			status 
 			prefix = " * " if playlist == playing_playlist and index == playing_index and status["state"] == "play" else "   "
-			print prefix+"["+str(index)+"] "+track.getName() + " - " + track.getArtist(nameOnly = True)
+			print prefix+"["+str(index)+"] "+track.getName() + " - " + track.getArtists(nameOnly = True)
 			index += 1
 
 def set_current_playlist(playlist):
@@ -90,8 +90,14 @@ def command_uri(*args):
 		uri = args[0][0]
 
 		obj = spotify.objectFromURI(uri)
-		if obj != None:
-			set_current_playlist(obj)
+		if obj == None:
+			print "Invalid URI"
+			return
+
+		if isinstance(obj, SpotifyTrack):
+			obj = SpotifyUserlist(spotify, obj.getName(), [obj])
+
+		set_current_playlist(obj)
 
 def command_album(*args):
 	if args[0][0] == "" or current_playlist == None:
@@ -112,8 +118,8 @@ def command_artist(*args):
 	if current_playlist.getNumTracks() < index:
 		return
 
-	album = current_playlist.getTracks()[index].getArtist()
-	set_current_playlist(album)
+	artist = current_playlist.getTracks()[index].getArtists()[0]
+	set_current_playlist(artist)
 
 def command_search(*args):
 	if len(*args) == 0 or args[0][0] == "":

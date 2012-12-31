@@ -15,7 +15,7 @@ sp.connect(sys.argv[1], sys.argv[2])
 def display_playlist(playlist):
 	print playlist.attributes.name+"\n"
 
-	track_uris = [track.uri for track in playlist.contents.items if SpotifyUtil.get_uri_type(track.uri) != "local"]
+	track_uris = [track.uri for track in playlist.contents.items if not SpotifyUtil.is_local(track.uri)]
 	tracks = sp.metadata_request(track_uris)
 	for track in tracks:
 		print track.name
