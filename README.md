@@ -68,4 +68,3 @@ Want to help out? Great! Here's a a list of things that need doing or improving:
 * An example graphical client using the API (preferably multi-platform, OSX/Linux)
 * Toplist support
 * Radio support
-* Search support

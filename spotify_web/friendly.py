@@ -1,6 +1,7 @@
 from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 from spotify_web.proto import mercury_pb2, metadata_pb2
 from functools import partial
+from lxml import etree
 import sys
 
 class Cache(object):
@@ -186,6 +187,39 @@ class SpotifyPlaylist(SpotifyObject):
 
 		return tracks
 
+class SpotifySearch():
+	def __init__(self, spotify, query, query_type = "all", max_results = 50, offset = 0):
+		self.spotify = spotify
+		self.query = query
+		self.query_type = query_type
+		self.max_results = max_results
+		self.offset = offset
+		xml = self.spotify.api.search_request(query, query_type=query_type, max_results=max_results, offset=offset)
+		xml = xml[38:] # trim UTF8 declaration
+		self.result = etree.fromstring(xml)
+
+	def getName(self):
+		return "Search: "+self.query
+
+	@Cache
+	def getTracks(self):
+		return self.getObjs(self.result, "track")
+
+	def getNumTracks(self):
+		return len(self.getTracks())
+
+	@Cache
+	def getAlbums(self):
+		return self.getObjs(self.result, "album")
+
+	@Cache
+	def getArtists(self):
+		return self.getObjs(self.result, "artist")
+
+	def getObjs(self, result, obj_type):
+		ids = [elem[0].text for elem in list(result.find(obj_type+"s"))]
+		objs = self.spotify.objectFromID(obj_type, ids)
+		return objs
 
 class Spotify():
 	def __init__(self, username, password): 
@@ -208,8 +242,8 @@ class Spotify():
 		playlist_uris += [playlist.uri for playlist in self.api.playlists_request(username).contents.items]
 		return [self.objectFromURI(playlist_uri) for playlist_uri in playlist_uris]
 
-	def search(self, query):
-		return self.api.search_request(query)
+	def search(self, query, query_type = "all", max_results = 50, offset = 0):
+		return SpotifySearch(self, query, query_type=query_type, max_results=max_results, offset=offset)
 
 	def objectFromInternalObj(self, object_type, objs, nameOnly = False):
 		if nameOnly:
@@ -222,11 +256,21 @@ class Spotify():
 
 		return self.objectFromURI(uris)
 
+	def objectFromID(self, object_type, ids):
+		try:
+			uris = [SpotifyUtil.id2uri(object_type, id) for id in ids]
+		except:
+			uris = SpotifyUtil.id2uri(object_type, ids)
+
+		return self.objectFromURI(uris)
+
 	def objectFromURI(self, uris):
 		if self.logged_in() == False:
 			return False
 
 		uris = [uris] if type(uris) != list else uris
+		if len(uris) == 0:
+			return []
 
 		uri_type = SpotifyUtil.get_uri_type(uris[0])
 		if uri_type == False:

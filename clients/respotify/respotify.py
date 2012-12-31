@@ -115,8 +115,23 @@ def command_artist(*args):
 	album = current_playlist.getTracks()[index].getArtist()
 	set_current_playlist(album)
 
+def command_search(*args):
+	if len(*args) == 0 or args[0][0] == "":
+		return
+
+	query = " ".join(args[0])
+	
+	results = spotify.search(query, query_type="tracks")
+	tracks = results.getTracks()
+	
+	if len(tracks) == 0:
+		print "No tracks found!"
+		return
+
+	set_current_playlist(results)
+
 def command_play(*args):
-	if args[0][0] == "":
+	if len(*args) == 0 or args[0][0] == "":
 		return
 
 	try:
@@ -171,6 +186,7 @@ def command_current_playlist(*args):
 	display_playlist(playing_playlist)
 
 command_map = {
+	"search": (command_search, "search for tracks"),
 	"artist": (command_artist, "view the artist for a specific track"),
 	"album":  (command_album, "view the album for a specific track"),
 	"stop": (command_stop, "stops any currently playing track"),
@@ -190,8 +206,6 @@ def command_loop():
 	command_help()
 	sys.stdin = FileObject(sys.stdin)
 	while spotify.api.disconnecting == False:
-		with client:
-			print client.status()
 		sys.stdout.write("\n> ")
 		sys.stdout.flush()
 		command = raw_input().split(" ")

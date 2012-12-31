@@ -2,7 +2,7 @@
 
 from gevent import monkey; monkey.patch_all()
 from ws4py.client.geventclient import WebSocketClient
-import base64, binascii, json, pprint, re, requests, string, sys, time, gevent
+import base64, binascii, json, pprint, re, requests, string, sys, time, gevent, operator
 
 from .proto import mercury_pb2, metadata_pb2
 from .proto import playlist4changes_pb2, playlist4content_pb2
@@ -497,8 +497,25 @@ class SpotifyAPI():
          "spotify:app:playlist:" + userid + ":" + playlistid, "0.1.0", "com.spotify", XNum]
 		self.send_command("sp/track_end", args, callback)
 
-	def search_request(self, query, callback = False):
-		args = [query]
+	def search_request(self, query, query_type = "all", max_results = 50, offset = 0, callback = False):
+		if max_results > 50:
+			Logging.warn("Maximum of 50 results per request, capping at 50")
+			max_results = 50
+
+		search_types = {
+			"tracks": 1,
+			"albums": 2,
+			"artists": 4,
+			"playlists": 8
+
+		}
+
+		query_type= [k for k, v in search_types.items()] if query_type == "all" else query_type
+		query_type = [query_type] if type(query_type) != list else query_type
+		query_type = reduce(operator.or_, [search_types[type_name] for type_name in query_type if type_name in search_types])
+
+		args = [query, query_type, max_results, offset]
+
 		if callback == False:
 			data = WrapAsync(None, self.send_command, "sp/search", args).get_data()
 			return data
