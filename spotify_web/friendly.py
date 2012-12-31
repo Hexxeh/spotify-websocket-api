@@ -17,7 +17,20 @@ class Cache(object):
           cache = obj.__cache
       except AttributeError:
           cache = obj.__cache = {}
-      key = (self.func, args[1:], frozenset(kw.items()))
+
+      arglist = list(args[1:])
+      for i in xrange(0, len(arglist)):
+       	if type(arglist[i]) == list:
+      		astring = True
+      		for item in arglist[i]:
+      			if type(item) != str and type(item) != unicode:
+      				astring = False
+      				break
+      		if astring:
+      			arglist[i] = "".join(arglist[i])
+      arglist = tuple(arglist)
+
+      key = (self.func, arglist, frozenset(kw.items()))
       try:
           res = cache[key]
       except KeyError:
@@ -309,6 +322,7 @@ class Spotify():
 
 		return self.objectFromURI(uris, asArray = True)
 
+	@Cache
 	def objectFromURI(self, uris, asArray = False):
 		if self.logged_in() == False:
 			return False
