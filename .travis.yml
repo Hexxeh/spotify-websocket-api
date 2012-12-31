@@ -7,4 +7,4 @@ env:
 install:
  - deactivate
  - sudo -E ./install-deps.sh
-script: python$TRAVIS_PYTHON_VERSION test.py
+script: python$TRAVIS_PYTHON_VERSION test.py -v
