@@ -4,8 +4,7 @@ env:
   global:
    - secure: "DTC5q7A93fuqOThQ4oWDNsHrJ9CHhVvGT/eUTLPyNz7xGuPIKnEEjqWAsI7N\niJUGTxjE8kkVQZBpXGzniWB+j8hy06ACuv1lSi/sxAFVWxWXhgsUMoPy00Ss\nLTUxCfc2jIJdkbjgCbeOMNWazc/nqxH7L8yp346GZUyDaovaFcs="
    - secure: "QIuTjPHCCLDqhrjwJtZLdtQKkmwCXKXT9LC0zCr1yfWK+DpLfpFB/LkD9ca+\nZ0bsZ9NM0X4t+R5hAEBTRcIOoVEtutOb4MOlYK5j1uHsNVjDC9nB1+OTqEyK\nURlw2AQTzFNs++LQnfXe8QAd9VLu+wJ5NAjH0tX28Xje95humuE="
-   - VER=2.7
 install:
  - deactivate
  - sudo -E ./install-deps.sh
-script: python$VER test.py
+script: python$TRAVIS_PYTHON_VERSION test.py

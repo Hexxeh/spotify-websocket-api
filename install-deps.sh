@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -e -x
+VER=$TRAVIS_PYTHON_VERSION
 apt-get update -yqq || true
 apt-get upgrade -yqq || true
 apt-get install -q python$VER
@@ -13,8 +14,9 @@ dpkg -i python2.7-cython_0.17.1_i386.deb
 dpkg -i python$VER-greenlet_0.4.0_i386.deb
 dpkg -i python$VER-psycopg2_2.4.5_i386.deb
 dpkg -i python$VER-pysendfile_2.0.0_i386.deb
-tar -xf web.py-0.37.tar.gz && cd web.py-0.37 && $PYTHON setup.py -q install && cd -
+tar -xf web.py-0.37.tar.gz && cd web.py-0.37 && python$VER setup.py -q install && cd -
 if [ "x$VER" = "x2.7" ]; then pip install --use-mirrors -q pep8; fi
 cython --version
 python$VER -c 'import greenlet; print greenlet, greenlet.__version__; import psycopg2; print psycopg2, psycopg2.__version__; import web; print web, web.__version__'
-pip install -r requirements.txt --upgrade
+pip install requests greenlet protobuf cherrypy ws4py python-mpd2 --upgrade
+pip install git+https://github.com/SiteSupport/gevent.git --upgrade
