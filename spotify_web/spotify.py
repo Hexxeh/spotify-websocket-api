@@ -35,7 +35,7 @@ class Logging():
 			print "[ERROR] " + str
 
 class WrapAsync():
-	timeout = 5
+	timeout = 10
 
 	def __init__(self, callback, func, *args):
 		self.marker = gevent.event.AsyncResult()
@@ -140,6 +140,7 @@ class SpotifyAPI():
 		self.seq = 0
 		self.cmd_callbacks = {}
 		self.login_callback = login_callback_func
+		self.is_logged_in = False
 
 	def auth(self, username, password):
 		if self.settings != None:
@@ -192,6 +193,7 @@ class SpotifyAPI():
 		self.username = resp["user"]
 		self.country = resp["country"]
 		self.account_type = resp["catalogue"]
+		self.is_logged_in = True
 		if self.login_callback != False:
 			self.do_login_callback(True)
 		else:
@@ -638,4 +640,3 @@ class SpotifyAPI():
 		self.disconnecting = True
 		gevent.sleep(1)
 		gevent.killall(self.greenlets)
-

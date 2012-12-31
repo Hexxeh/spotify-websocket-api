@@ -304,7 +304,7 @@ class Spotify():
 		self.api.connect(username, password)
 
 	def logged_in(self):
-		return self.api.logged_in
+		return self.api.is_logged_in
 
 	def logout(self):
 		self.api.disconnect()

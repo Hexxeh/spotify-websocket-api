@@ -1,0 +1,7 @@
+requests
+greenlet
+protobuf
+cherrypy
+ws4py
+python-mpd2
+git+https://github.com/SiteSupport/gevent.git
