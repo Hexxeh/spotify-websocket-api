@@ -108,7 +108,6 @@ class SpotifyArtist(SpotifyMetadataObject):
 		# this means the number of top tracks, really
 		return len(self.getTracks(objOnly = True))
 
-	@Cache
 	def getRelatedArtists(self, nameOnly = False):
 		return self.spotify.objectFromInternalObj("artist", self.obj.related, nameOnly)
 
@@ -223,7 +222,7 @@ class SpotifyUserlist():
 	def getTracks(self):
 		return self.tracks
 class SpotifySearch():
-	def __init__(self, spotify, query, query_type = "all", max_results = 50, offset = 0):
+	def __init__(self, spotify, query, query_type, max_results, offset):
 		self.spotify = spotify
 		self.query = query
 		self.query_type = query_type
@@ -248,24 +247,20 @@ class SpotifySearch():
 		self.populate()
 
 	def getName(self):
-		return "Search: "+self.query
+		return "Search "+self.query_type+": "+self.query
 
-	@Cache
 	def getTracks(self):
 		return self.getObjByID(self.result, "track")
 
 	def getNumTracks(self):
 		return len(self.getTracks())
 
-	@Cache
 	def getAlbums(self):
 		return self.getObjByID(self.result, "album")
 
-	@Cache
 	def getArtists(self):
 		return self.getObjByID(self.result, "artist")
 
-	@Cache
 	def getPlaylists(self):
 		return self.getObjByURI(self.result, "playlist")
 
@@ -278,6 +273,30 @@ class SpotifySearch():
 		uris = [elem[0].text for elem in list(result.find(obj_type+"s"))]
 		objs = self.spotify.objectFromURI(uris, asArray = True)
 		return objs
+
+class SpotifyToplist():
+	def __init__(self, spotify, toplist_content_type, toplist_type, username, region):
+		self.spotify = spotify
+		self.toplist_type = toplist_type
+		self.toplist_content_type = toplist_content_type
+		self.username = username
+		self.region = region
+		self.toplist = self.spotify.api.toplist_request(toplist_content_type, toplist_type, username, region)
+
+	def getTracks(self):
+		if self.toplist_content_type != "track":
+			return []
+		return self.spotify.objectFromID(self.toplist_content_type, self.toplist.items)
+
+	def getAlbums(self):
+		if self.toplist_content_type != "album":
+			return []
+		return self.spotify.objectFromID(self.toplist_content_type, self.toplist.items)
+
+	def getArtists(self):
+		if self.toplist_content_type != "artist":
+			return []
+		return self.spotify.objectFromID(self.toplist_content_type, self.toplist.items)
 
 class Spotify():
 	def __init__(self, username, password): 
@@ -299,6 +318,12 @@ class Spotify():
 
 		playlist_uris += [playlist.uri for playlist in self.api.playlists_request(username).contents.items]
 		return [self.objectFromURI(playlist_uri) for playlist_uri in playlist_uris]
+
+	def getUserToplist(self, toplist_content_type = "track", username = None):
+		return SpotifyToplist(self, toplist_content_type, "user", username, None)
+
+	def getRegionToplist(self, toplist_content_type = "track", region = None):
+		return SpotifyToplist(self, toplist_content_type, "region", None, region)
 
 	def search(self, query, query_type = "all", max_results = 50, offset = 0):
 		return SpotifySearch(self, query, query_type=query_type, max_results=max_results, offset=offset)

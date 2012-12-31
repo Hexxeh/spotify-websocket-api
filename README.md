@@ -60,11 +60,25 @@ prev		plays the previous track in the current playlist
 >
 </pre>
 
+What's implemented?
+-------------------
+
+* Login via username/password
+* Metadata retrieval (track/album/artist)
+* Playlist and rootlist support (add/remove tracks only, playlist creation/deletion/renaming not yet suppported)
+* Toplists for both regions and users (track/album/artist only)
+* Starring/unstarring tracks
+* MP3 playback URL retrieval
+
+What's NOT implemented?
+-----------------------
+* Playlist creation/deleting/renaming
+* Maybe more? Feel free to add to this list
+
 TODO
 ----
 
 Want to help out? Great! Here's a a list of things that need doing or improving:
 
 * An example graphical client using the API (preferably multi-platform, OSX/Linux)
-* Toplist support
-* Radio support
+* Anything from the unimplemented list above

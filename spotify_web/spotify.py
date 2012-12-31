@@ -40,7 +40,13 @@ class WrapAsync():
 	def __init__(self, callback, func, *args):
 		self.marker = gevent.event.AsyncResult()
 
-		callback = self.callback if callback == None else [callback, self.callback]
+		if callback == None:
+			callback = self.callback
+		elif type(callback) == list:
+			callback = callback+[self.callback]
+		else:
+			callback = [callback, self.callback]
+
 		func(*args, callback=callback)
 
 	def callback(self, *args):
@@ -182,7 +188,7 @@ class SpotifyAPI():
 	def auth_from_json(self, json):
 		self.settings = json
 
-	def populate_userdata_callback(self, sp, resp):
+	def populate_userdata_callback(self, sp, resp, callback_data):
 		self.username = resp["user"]
 		self.country = resp["country"]
 		self.account_type = resp["catalogue"]
@@ -190,6 +196,7 @@ class SpotifyAPI():
 			self.do_login_callback(True)
 		else:
 			self.logged_in_marker.set(True)
+		self.chain_callback(sp, resp, callback_data)
 
 	def logged_in(self, sp, resp):
 		self.user_info_request(self.populate_userdata_callback)
@@ -213,19 +220,15 @@ class SpotifyAPI():
 		if tid == False:
 			return False
 		args = ["mp3160", tid]
-		if callback == False:
-			data = WrapAsync(None, self.send_command, "sp/track_uri", args).get_data()
-			return data
-		else:
-			self.send_command("sp/track_uri", args, callback)
+		return self.wrap_request("sp/track_uri", args, callback)
 
-	def parse_metadata(self, resp):
+	def parse_metadata(self, sp, resp, callback_data):
 		header = mercury_pb2.MercuryReply()
 		header.ParseFromString(base64.decodestring(resp[0]))
 
 		if header.status_message == "vnd.spotify/mercury-mget-reply":
 			if len(resp) < 2:
-				return False
+				ret = False
 
 			mget_reply = mercury_pb2.MercuryMultiGetReply()
 			mget_reply.ParseFromString(base64.decodestring(resp[1]))
@@ -236,9 +239,11 @@ class SpotifyAPI():
 
 				item = self.parse_metadata_item(reply.content_type, reply.body)
 				items.append(item)
-			return items
+			ret = items
 		else:
-			return self.parse_metadata_item(header.status_message, base64.decodestring(resp[1]))
+			ret = self.parse_metadata_item(header.status_message, base64.decodestring(resp[1]))
+
+		self.chain_callback(sp, ret, callback_data)
 
 	def parse_metadata_item(self, content_type, body):
 		if content_type == "vnd.spotify/metadata-album":
@@ -255,21 +260,27 @@ class SpotifyAPI():
 
 		return obj
 
-	def parse_toplist(self, resp):
+	def parse_toplist(self, sp, resp, callback_data):
 		obj = toplist_pb2.Toplist()
 		res = base64.decodestring(resp[1])
 		obj.ParseFromString(res)
-		return obj
+		self.chain_callback(sp, obj, callback_data)
 
-	def parse_playlist(self, resp):
+	def parse_playlist(self, sp, resp, callback_data):
 		obj = playlist4changes_pb2.ListDump()
 		try:
 			res = base64.decodestring(resp[1])
 			obj.ParseFromString(res)
-			return obj
 		except:
-			print resp
-			return False
+			obj = False
+
+		self.chain_callback(sp, obj, callback_data)
+
+	def chain_callback(self, sp, data, callback_data):
+		if len(callback_data) > 1:
+			callback_data[0](self, data, callback_data[1:])
+		elif len(callback_data) == 1:
+			callback_data[0](self, data)
 
 	def is_track_available(self, track):
 		allowed_countries = []
@@ -349,6 +360,17 @@ class SpotifyAPI():
 
 		return args
 
+	def wrap_request(self, command, args, callback, int_callback = None):
+		if callback == False:
+			data = WrapAsync(int_callback, self.send_command, command, args).get_data()
+			return data
+		else:
+			callback = [callback] if type(callback) != list else callback
+			if int_callback != None:
+				int_callback = [int_callback] if type(int_callback) != list else int_callback
+				callback = int_callback + callback
+			self.send_command(command, args, callback)
+
 	def metadata_request(self, uris, callback = False):
 		mercury_requests = mercury_pb2.MercuryMultiGetRequest()
 
@@ -371,37 +393,35 @@ class SpotifyAPI():
 
 		args = self.generate_multiget_args(SpotifyUtil.get_uri_type(uris[0]), mercury_requests)
 
-		if callback == False:
-			data = WrapAsync(self.metadata_response, self.send_command, "sp/hm_b64", args).get_data()
-			return data
-		else:
-			callback = [callback] if type(callback) != list else callback
-			self.send_command("sp/hm_b64", args, [self.metadata_response]+callback)
+		return self.wrap_request("sp/hm_b64", args, callback, self.parse_metadata)
 
-	def metadata_response(self, sp, resp, callback_data):
-		obj = self.parse_metadata(resp)
-		if len(callback_data) > 1:
-			callback_data[0](self, obj, callback_data[1:])
-		else:
-			callback_data[0](self, obj)
-
-	def toplist_request(self, toplist_type, user = None, callback = False):
-		if user == None:
-			user = self.username
+	def toplist_request(self, toplist_content_type = "track", toplist_type = "user", username = None, region = "global", callback = False):
+		if username == None:
+			username = self.username
 
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = "GET"
-		mercury_request.uri = "hm://toplist/toplist/user/"+user+"?type="+toplist_type
+		if toplist_type == "user":
+			mercury_request.uri = "hm://toplist/toplist/user/"+username
+		elif toplist_type == "region":
+			mercury_request.uri = "hm://toplist/toplist/region"
+			if region != None and region != "global":
+				mercury_request.uri += "/"+region
+		else:
+			return False
+		mercury_request.uri += "?type="+toplist_content_type
+
+		# playlists don't appear to work?
+		if toplist_type == "user" and toplist_content_type == "playlist":
+			if username != self.username:
+				return False
+			mercury_request.uri = "hm://socialgraph/suggestions/topplaylists"
+
 		req = base64.encodestring(mercury_request.SerializeToString())
 
 		args = [0, req]
 
-		if callback == False:
-			data = WrapAsync(self.toplist_response, self.send_command, "sp/hm_b64", args).get_data()
-			return data
-		else:
-			callback = [callback] if type(callback) != list else callback
-			self.send_command("sp/hm_b64", args, [self.toplist_response]+callback)
+		return self.wrap_request("sp/hm_b64", args, callback, self.parse_toplist)
 
 	def playlists_request(self, user, fromnum = 0, num = 100, callback = False):
 		if num > 100:
@@ -415,12 +435,7 @@ class SpotifyAPI():
 
 		args = [0, req]
 
-		if callback == False:
-			data = WrapAsync(self.playlist_response, self.send_command, "sp/hm_b64", args).get_data()
-			return data
-		else:
-			callback = [callback] if type(callback) != list else callback
-			self.send_command("sp/hm_b64", args, [self.playlist_response]+callback)
+		return self.wrap_request("sp/hm_b64", args, callback, self.parse_playlist)
 
 
 	def playlist_request(self, uri, fromnum = 0, num = 100, callback = False):
@@ -434,27 +449,7 @@ class SpotifyAPI():
 		req = base64.encodestring(mercury_request.SerializeToString())
 		args = [0, req]
 
-		if callback == False:
-			data = WrapAsync(self.playlist_response, self.send_command, "sp/hm_b64", args).get_data()
-			return data
-		else:
-			callback = [callback] if type(callback) != list else callback
-			self.send_command("sp/hm_b64", args, [self.playlist_response]+callback)
-
-	def toplist_response(self, sp, resp, callback_data):
-		print resp
-		obj = self.parse_toplist(resp)
-		if len(callback_data) > 1:
-			callback_data[0](self, obj, callback_data[1:])
-		else:
-			callback_data[0](self, obj)
-
-	def playlist_response(self, sp, resp, callback_data):
-		obj = self.parse_playlist(resp)
-		if len(callback_data) > 1:
-			callback_data[0](self, obj, callback_data[1:])
-		else:
-			callback_data[0](self, obj)
+		return self.wrap_request("sp/hm_b64", args, callback, self.parse_playlist)
 
 	def playlist_op_track(self, playlist_uri, track_uri, op, callback = None):
 		playlist = playlist_uri.split(":")
@@ -467,7 +462,6 @@ class SpotifyAPI():
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = op
 		mercury_request.uri = "hm://playlist/user/"+user+"/" + playlist_id + "?syncpublished=1"
-		print mercury_request.__str__()
 		req = base64.encodestring(mercury_request.SerializeToString())
 		args = [0, req, base64.encodestring(track_uri)]
 		self.send_command("sp/hm_b64", args, callback)
@@ -483,23 +477,6 @@ class SpotifyAPI():
 			self.playlist_add_track("spotify:user:"+self.username+":starred", track_uri, callback)
 		else:
 			self.playlist_remove_track("spotify:user:"+self.username+":starred", track_uri, callback)
-
-	def track_progress(self, lid, ms, randnum, userid, playlist, trackuri, callback):
-		args = [lid, "playlist", "clickrow", ms, randnum,
-		 "spotify:user:" + userid + ":playlist: " + playlist,
-		 trackuri, "spotify:app:playlist:" + playlist, "0.1.0", "com.spotify"]
-		self.send_command("sp/track_progress", args, callback)
-
-
-	def track_event(self, lid, eventcode, secondNum, callback):
-		args = [lid, eventcode, secondNum]
-		self.send_command("sp/track_event", args, callback)
-
-	def track_end(self, lid, XNum, progressnum, uri, userid, playlistid, callback):
-		args = [lid, XNum, XNum, 0, 0, 0, 0, progressnum, uri,
-		 "spotify:user:" + userid + ":playlist:" + playlistid, "playlist", "playlist", "clickrow", "clickrow",
-         "spotify:app:playlist:" + userid + ":" + playlistid, "0.1.0", "com.spotify", XNum]
-		self.send_command("sp/track_end", args, callback)
 
 	def search_request(self, query, query_type = "all", max_results = 50, offset = 0, callback = False):
 		if max_results > 50:
@@ -520,15 +497,10 @@ class SpotifyAPI():
 
 		args = [query, query_type, max_results, offset]
 
-		if callback == False:
-			data = WrapAsync(None, self.send_command, "sp/search", args).get_data()
-			return data
-		else:
-			callback = [callback] if type(callback) != list else callback
-			self.send_command("sp/search", args, callback)
+		return self.wrap_request("sp/search", args, callback)
 
 	def user_info_request(self, callback = None):
-		self.send_command("sp/user_info", callback = callback)
+		return self.wrap_request("sp/user_info", [], callback)
 
 	def heartbeat(self):
 		self.send_command("sp/echo", "h", callback = False)
@@ -587,7 +559,6 @@ class SpotifyAPI():
 			self.send_command("sp/work_done", ["v1"], self.work_callback)
 
 	def handle_error(self, err):
-		print len(err)
 		if len(err) < 2:
 			Logging.error("Unknown error "+str(err))
 
@@ -665,4 +636,6 @@ class SpotifyAPI():
 
 	def disconnect(self):
 		self.disconnecting = True
+		gevent.sleep(1)
+		gevent.killall(self.greenlets)
 
