@@ -217,7 +217,7 @@ class SpotifyPlaylist(SpotifyObject):
 				tracks += spotify.objectFromURI(track_uris, asArray = True)
 
 			threads = []
-			while start < self.getNumTracks():
+			while start < self.obj.length:
 				results[start] = []
 				threads.append(Thread(target=worker, args=(self.spotify, self.uri, start, results[start])))
 				start += tracks_per_call

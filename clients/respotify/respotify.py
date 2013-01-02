@@ -44,10 +44,11 @@ def display_playlist(playlist = None):
 
 	playlist = current_playlist if playlist == None else playlist
 
+	print playlist.getName()+"\n"
+
 	if playlist.getNumTracks() == 0:
 		print "No tracks currently in playlist"
 	else:
-		print playlist.getName()+"\n"
 		with client:
 			status = client.status()
 		playing_index = int(status["song"])+1 if "song" in status else -1
