@@ -47,6 +47,7 @@ class WrapAsync():
 		else:
 			callback = [callback, self.callback]
 
+		self.data = False
 		func(*args, callback=callback)
 
 	def callback(self, *args):
@@ -225,10 +226,10 @@ class SpotifyAPI():
 			self.logged_in_marker.set()
 
 	def track_uri(self, track, callback = False):
-		tid = self.recurse_alternatives(track)
-		if tid == False:
+		track = self.recurse_alternatives(track)
+		if track == False:
 			return False
-		args = ["mp3160", tid]
+		args = ["mp3160", SpotifyUtil.gid2id(track.gid)]
 		return self.wrap_request("sp/track_uri", args, callback)
 
 	def parse_metadata(self, sp, resp, callback_data):
@@ -341,12 +342,12 @@ class SpotifyAPI():
 
 	def recurse_alternatives(self, track, attempted = []):
 		if self.is_track_available(track):
-			return SpotifyUtil.gid2id(track.gid)
+			return track
 		else:
 			for alternative in track.alternative:
 				if self.is_track_available(alternative):
-					return SpotifyUtil.gid2id(alternative.gid)
-
+					return alternative
+			return False
 			for alternative in track.alternative:
 				uri = SpotifyUtil.gid2uri("track", alternative.gid)
 				if uri not in attempted:

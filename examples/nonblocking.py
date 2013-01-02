@@ -6,7 +6,6 @@ from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 def track_callback(sp, tracks):
 	for track in tracks:
 		print track.name
-	sp.disconnect()
 
 def album_callback(sp, album):
 	print album.name+" - "+album.artist[0].name+"\n"

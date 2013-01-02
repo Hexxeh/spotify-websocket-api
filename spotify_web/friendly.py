@@ -68,6 +68,20 @@ class SpotifyMetadataObject(SpotifyObject):
 class SpotifyTrack(SpotifyMetadataObject):
 	uri_type = "track"
 
+	def isAvailable(self):
+		name = self.obj.name
+		new_obj = self.spotify.api.recurse_alternatives(self.obj)
+		if new_obj == False:
+			return False
+		else:
+			# invalidate cache
+			self._Cache__cache = {}
+			
+			if new_obj.HasField("name") == False:
+				new_obj = self.spotify.api.metadata_request(SpotifyUtil.gid2uri("track", new_obj.gid))
+			self.obj = new_obj
+			return True
+
 	def getNumber(self):
 		return self.obj.number
 
@@ -195,10 +209,26 @@ class SpotifyPlaylist(SpotifyObject):
 		if self.obj.contents.truncated == True:
 			tracks_per_call = 100
 			start = tracks_per_call
+
+			results = {}
+			def worker(spotify, uri, start, tracks):
+				track_uris = [item.uri for item in spotify.api.playlist_request(uri, start).contents.items]
+				tracks += spotify.objectFromURI(track_uris, asArray = True)
+
+			threads = []
 			while start < self.getNumTracks():
-				track_uris = [item.uri for item in self.spotify.api.playlist_request(self.uri, start).contents.items]
-				tracks += self.spotify.objectFromURI(track_uris, asArray = True)
+				results[start] = []
+				threads.append(Thread(target=worker, args=(self.spotify, self.uri, start, results[start])))
 				start += tracks_per_call
+
+			for thread in threads:
+				thread.start()
+			for thread in threads:
+				thread.join()
+
+			for k, v in sorted(results.items()):
+				print str(k)+": "+str(len(v))
+				tracks += v
 
 		return tracks
 
@@ -222,6 +252,7 @@ class SpotifyUserlist():
 
 	def getTracks(self):
 		return self.tracks
+
 class SpotifySearch():
 	def __init__(self, spotify, query, query_type, max_results, offset):
 		self.spotify = spotify
@@ -364,21 +395,32 @@ class Spotify():
 			if len(uris) == 1:
 				results = [SpotifyPlaylist(self, uri=uris[0])]
 			else:
-				results = []
-				def worker(spotify, uri, results):
-					results.append(SpotifyPlaylist(spotify, uri=uri))
-				threads = [Thread(target=worker, args=(self, uri, results)) for uri in uris]
+				thread_results = {}
+				def worker(spotify, uri, results, index):
+					results[index] = SpotifyPlaylist(spotify, uri=uri)
+				threads = []
+				for index in range(0, len(uris)):
+					threads.append(Thread(target=worker, args=(self, uris[index], thread_results, index)))
 				for thread in threads:
 					thread.start()
 				for thread in threads:
 					thread.join()
+
+				results = [v for k, v in thread_results.items()]
+
 		elif uri_type in ["track", "album", "artist"]:
 			uris = [uri for uri in uris if not SpotifyUtil.is_local(uri)]
 			objs = self.api.metadata_request(uris)
 			objs = [objs] if type(objs) != list else objs
+
+			failed_requests = len([obj for obj in objs if obj == False])
+			if failed_requests > 0:
+				print failed_requests,"metadata requests failed"
+			
 			objs = [obj for obj in objs if obj != False]
 			if uri_type == "track":
-				results = [SpotifyTrack(self, obj=obj) for obj in objs]
+				tracks = [SpotifyTrack(self, obj=obj) for obj in objs]
+				results = [track for track in tracks if track.isAvailable()]
 			elif uri_type == "album":
 				results =  [SpotifyAlbum(self, obj=obj) for obj in objs]
 			elif uri_type == "artist":
@@ -392,7 +434,7 @@ class Spotify():
 			elif len(results) == 0:
 				return None
 
-		return results
+		return results	
 
 	@staticmethod
 	def imagesFromArray(image_objs):
