@@ -76,7 +76,7 @@ class SpotifyTrack(SpotifyMetadataObject):
 		else:
 			# invalidate cache
 			self._Cache__cache = {}
-			
+
 			if new_obj.HasField("name") == False:
 				new_obj = self.spotify.api.metadata_request(SpotifyUtil.gid2uri("track", new_obj.gid))
 			self.obj = new_obj
@@ -199,7 +199,8 @@ class SpotifyPlaylist(SpotifyObject):
 		return "Starred" if self.getID() == "starred" else self.obj.attributes.name
 
 	def getNumTracks(self):
-		return self.obj.length
+		# we can't rely on the stated length, some might not be available
+		return len(self.getTracks())
 
 	@Cache
 	def getTracks(self):
