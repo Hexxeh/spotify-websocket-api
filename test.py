@@ -10,6 +10,9 @@ class SpotifyTest(unittest.TestCase):
 		if self.spotify.logged_in() != True:
 			print "Login failed"
 
+	def tearDown(self):
+		self.spotify.logout()
+
 	def test_get_track_by_uri(self):
 		test_uris = {
 			"spotify:track:4DoiEk7AaubTkIkYencvx7": {

@@ -2,6 +2,7 @@ from spotify_web.spotify import SpotifyAPI, SpotifyUtil
 from spotify_web.proto import mercury_pb2, metadata_pb2
 from functools import partial
 from lxml import etree
+from threading import Thread
 import sys
 
 class Cache(object):
@@ -317,7 +318,7 @@ class Spotify():
 			playlist_uris += ["spotify:user:"+username+":starred"]
 
 		playlist_uris += [playlist.uri for playlist in self.api.playlists_request(username).contents.items]
-		return [self.objectFromURI(playlist_uri) for playlist_uri in playlist_uris]
+		return self.objectFromURI(playlist_uris)
 
 	def getUserToplist(self, toplist_content_type = "track", username = None):
 		return SpotifyToplist(self, toplist_content_type, "user", username, None)
@@ -360,7 +361,17 @@ class Spotify():
 		if uri_type == False:
 			return None
 		elif uri_type == "playlist":
-			results =  [SpotifyPlaylist(self, uri=uri) for uri in uris]
+			if len(uris) == 1:
+				results = [SpotifyPlaylist(self, uri=uris[0])]
+			else:
+				results = []
+				def worker(spotify, uri, results):
+					results.append(SpotifyPlaylist(spotify, uri=uri))
+				threads = [Thread(target=worker, args=(self, uri, results)) for uri in uris]
+				for thread in threads:
+					thread.start()
+				for thread in threads:
+					thread.join()
 		elif uri_type in ["track", "album", "artist"]:
 			uris = [uri for uri in uris if not SpotifyUtil.is_local(uri)]
 			objs = self.api.metadata_request(uris)

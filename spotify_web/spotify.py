@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
-from gevent import monkey; monkey.patch_all()
-from ws4py.client.geventclient import WebSocketClient
-import base64, binascii, json, pprint, re, requests, string, sys, time, gevent, operator
+from ws4py.client.threadedclient import WebSocketClient
+from threading import Thread, Event
+import base64, binascii, json, re, requests, sys, operator
 
 from .proto import mercury_pb2, metadata_pb2
 from .proto import playlist4changes_pb2, playlist4content_pb2
@@ -38,7 +38,7 @@ class WrapAsync():
 	timeout = 10
 
 	def __init__(self, callback, func, *args):
-		self.marker = gevent.event.AsyncResult()
+		self.marker = Event()
 
 		if callback == None:
 			callback = self.callback
@@ -50,17 +50,20 @@ class WrapAsync():
 		func(*args, callback=callback)
 
 	def callback(self, *args):
-		self.marker.set(args)
+		self.data = args
+		self.marker.set()
 
 	def get_data(self):
 		try:
-			data = self.marker.get(timeout = self.timeout)
+			self.marker.wait(timeout = self.timeout)
 
-			if len(data) > 0 and type(data[0] == SpotifyAPI):
-				data = data[1:]
+			if len(self.data) > 0 and type(self.data[0] == SpotifyAPI):
+				self.data = self.data[1:]
 
-			return data if len(data) > 1 else data[0]
+			return self.data if len(self.data) > 1 else self.data[0]
 		except:
+			print "There was an error, disconnecting! Details below:"
+			print sys.exc_info()
 			return False
 
 class SpotifyClient(WebSocketClient):
@@ -69,6 +72,12 @@ class SpotifyClient(WebSocketClient):
 
 	def opened(self):
 		self.api_object.login()
+
+	def received_message(self, m):
+		self.api_object.recv_packet(m)
+
+	def closed(self, code, message):
+		self.api_object.shutdown()
 
 class SpotifyUtil():
 	@staticmethod
@@ -127,7 +136,8 @@ class SpotifyAPI():
 	def __init__(self, login_callback_func = False):
 		self.auth_server = "play.spotify.com"
 
-		self.logged_in_marker = gevent.event.AsyncResult()
+		self.logged_in_marker = Event()
+		self.heartbeat_marker = Event()
 		self.username = None
 		self.password = None
 		self.account_type = None
@@ -186,9 +196,6 @@ class SpotifyAPI():
 
 		self.settings = resp.json()["config"]
 
-	def auth_from_json(self, json):
-		self.settings = json
-
 	def populate_userdata_callback(self, sp, resp, callback_data):
 		self.username = resp["user"]
 		self.country = resp["country"]
@@ -197,7 +204,7 @@ class SpotifyAPI():
 		if self.login_callback != False:
 			self.do_login_callback(True)
 		else:
-			self.logged_in_marker.set(True)
+			self.logged_in_marker.set()
 		self.chain_callback(sp, resp, callback_data)
 
 	def logged_in(self, sp, resp):
@@ -213,9 +220,9 @@ class SpotifyAPI():
 
 	def do_login_callback(self, result):
 		if self.login_callback != False:
-			gevent.spawn(self.login_callback, self, result)
+			Thread(target=self.login_callback, args=(self, result)).start()
 		else:
-			self.logged_in_marker.set(False)
+			self.logged_in_marker.set()
 
 	def track_uri(self, track, callback = False):
 		tid = self.recurse_alternatives(track)
@@ -599,18 +606,10 @@ class SpotifyAPI():
 		else:
 			Logging.error(major_str + " - " + minor_str)
 
-	def event_handler(self):
-		while self.disconnecting == False:
-			m = self.ws.receive()
-			if m is not None:
-				self.recv_packet(str(m))
-			else:
-				break
-
 	def heartbeat_handler(self):
 		while self.disconnecting == False:
-			gevent.sleep(15)
 			self.heartbeat()
+			self.heartbeat_marker.wait(timeout=15)
 
 	def connect(self, username, password, timeout = 10):
 		if self.settings == None:
@@ -620,27 +619,29 @@ class SpotifyAPI():
 			 self.password = password
 
 		Logging.notice("Connecting to "+self.settings["aps"]["ws"][0])
-		
+
 		try:
 			self.ws = SpotifyClient(self.settings["aps"]["ws"][0])
 			self.ws.set_api(self)
 			self.ws.connect()
-			self.greenlets = [
-				gevent.spawn(self.event_handler),
-				gevent.spawn(self.heartbeat_handler)
-			]
+			Thread(target=self.heartbeat_handler).start()
 			if self.login_callback != False:
-				gevent.joinall(self.greenlets)
+				return
 			else:
 				try:
-					return self.logged_in_marker.get(timeout=timeout)
+					self.logged_in_marker.wait(timeout=timeout)
+					return self.is_logged_in
 				except:
 					return False
 		except:
 			self.disconnect()
+			print "There was an error, disconnecting! Details below:"
+			print sys.exc_info()
 			return False
 
-	def disconnect(self):
+	def shutdown(self):
 		self.disconnecting = True
-		gevent.sleep(1)
-		gevent.killall(self.greenlets)
+		self.heartbeat_marker.set()
+
+	def disconnect(self):
+		self.ws.close()

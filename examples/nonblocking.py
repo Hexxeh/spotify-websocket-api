@@ -25,3 +25,4 @@ if len(sys.argv) < 3:
 else:
 	sp = SpotifyAPI(login_callback)
 	sp.connect(sys.argv[1], sys.argv[2])
+	

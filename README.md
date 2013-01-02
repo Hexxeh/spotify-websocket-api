@@ -25,9 +25,9 @@ Experimental client
 Included is an experimental client called respotify, based on this API. It's almost identical to
 despotify-simple in terms of functionality. Be sure to have the following installed:
 
-* requests 1.0.4
-* gevent 1.0 (install from Git, you'll also need cython and libev installed)
+* requests >= 1.0
 * cherrypy
+* ws4py
 
 Once you've installed these, you can run the client like this:
 

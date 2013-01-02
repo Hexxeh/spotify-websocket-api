@@ -3,7 +3,6 @@
 import sys; sys.path.append("../..")
 from spotify_web.friendly import Spotify
 import cherrypy
-from gevent import wsgi
 
 class SpotifyURIHandler(object):
   def default(self, uri = None):

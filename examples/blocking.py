@@ -68,3 +68,5 @@ elif action == "restriction":
 		print "Track is available!"
 	else:
 		print "Track is NOT available! Double-check this using the official client"
+
+sp.disconnect()
