@@ -299,6 +299,10 @@ class SpotifyAPI():
 			allowed = not restriction.HasField("countries_allowed") or self.country in allowed_countries
 			forbidden = self.country in forbidden_countries and len(forbidden_countries) > 0
 
+			if self.country in allowed_countries and self.country in forbidden_countries:
+				allowed = True
+				forbidden = False
+
 			# guessing at names here, corrections welcome
 			account_type_map = {
 				"premium": 1,
