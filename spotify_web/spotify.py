@@ -623,11 +623,12 @@ class SpotifyAPI():
 		try:
 			self.ws = SpotifyClient(self.settings["aps"]["ws"][0])
 			self.ws.set_api(self)
+			self.ws.daemon = True
 			self.ws.connect()
-			Thread(target=self.heartbeat_handler).start()
-			if self.login_callback != False:
-				return
-			else:
+			heartbeat_thread = Thread(target=self.heartbeat_handler)
+			heartbeat_thread.daemon = True
+			heartbeat_thread.start()
+			if self.login_callback == False:
 				try:
 					self.logged_in_marker.wait(timeout=timeout)
 					return self.is_logged_in
