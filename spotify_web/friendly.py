@@ -185,11 +185,13 @@ class SpotifyAlbum(SpotifyMetadataObject):
 
 class SpotifyPlaylist(SpotifyObject):
 	uri_type = "playlist"
+	refs = []
 
 	def __init__(self, spotify, uri):
 		self.spotify = spotify
 		self.obj = spotify.api.playlist_request(uri)
 		self.uri = uri
+		SpotifyPlaylist.refs.append(self)
 
 	def __getitem__(self, index):
 		if index >= self.getNumTracks():
@@ -199,6 +201,15 @@ class SpotifyPlaylist(SpotifyObject):
 
 	def __len__(self):
 		return self.getNumTracks()
+
+	def reload(self):
+		self._Cache__cache = {}
+		self.obj = self.spotify.api.playlist_request(self.uri)
+
+	def reload_refs(self):
+		for playlist in self.refs:
+			if playlist.getURI() == self.uri:
+				playlist.reload()
 
 	def getID(self):
 		uri_parts = self.uri.split(":")
@@ -214,10 +225,9 @@ class SpotifyPlaylist(SpotifyObject):
 		return "Starred" if self.getID() == "starred" else self.obj.attributes.name
 
 	def rename(self, name):
-		# invalidate cache
-		self._Cache__cache = {}
-
-		return self.spotify.api.rename_playlist(self.getURI(), name)
+		ret = self.spotify.api.rename_playlist(self.getURI(), name)
+		self.reload_refs()
+		return ret
 
 	def addTracks(self, tracks):
 		tracks = [tracks] if type(tracks) != list else tracks
@@ -226,8 +236,7 @@ class SpotifyPlaylist(SpotifyObject):
 		uris_str = ",".join(uris)
 		self.spotify.api.playlist_add_track(self.getURI(), uris_str)
 
-		# invalidate cache
-		self._Cache__cache = {}
+		self.reload_refs()
 
 	def removeTracks(self, tracks):
 		tracks = [tracks] if type(tracks) != list else tracks
@@ -241,8 +250,7 @@ class SpotifyPlaylist(SpotifyObject):
 
 		self.spotify.api.playlist_remove_track(self.getURI(), uris)
 
-		# invalidate cache
-		self._Cache__cache = {}
+		self.reload_refs()
 
 	def getNumTracks(self):
 		# we can't rely on the stated length, some might not be available
@@ -409,10 +417,13 @@ class Spotify():
 		return self.objectFromURI(playlist_uris)
 
 	def newPlaylist(self, name):
+		self._Cache__cache = {}
+
 		uri = self.api.new_playlist(name)
 		return SpotifyPlaylist(self, uri=uri)
 
 	def removePlaylist(self, playlist):
+		self._Cache__cache = {}
 		return self.api.remove_playlist(playlist.getURI())
 
 	def getUserToplist(self, toplist_content_type = "track", username = None):
@@ -498,7 +509,7 @@ class Spotify():
 			elif len(results) == 0:
 				return None
 
-		return results	
+		return results
 
 	@staticmethod
 	def imagesFromArray(image_objs):
