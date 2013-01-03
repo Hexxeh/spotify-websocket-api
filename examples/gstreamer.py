@@ -17,8 +17,7 @@ def player_message(bus, msg, player, mainloop):
 		mainloop.quit()
 	elif msg.type == gst.MESSAGE_ERROR:
 		player.set_state(gst.STATE_NULL)
-		print message.parse_error()
-	print msg.type
+		print msg.parse_error()
 
 if len(sys.argv) < 3:
 	print "Usage: "+sys.argv[0]+" <username> <password> [track URI]"
