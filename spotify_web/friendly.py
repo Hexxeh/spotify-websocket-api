@@ -67,9 +67,10 @@ class SpotifyMetadataObject(SpotifyObject):
 
 class SpotifyTrack(SpotifyMetadataObject):
 	uri_type = "track"
+	replaced = False
 
+	@Cache
 	def isAvailable(self):
-		name = self.obj.name
 		new_obj = self.spotify.api.recurse_alternatives(self.obj)
 		if new_obj == False:
 			return False
@@ -79,8 +80,13 @@ class SpotifyTrack(SpotifyMetadataObject):
 
 			if new_obj.HasField("name") == False:
 				new_obj = self.spotify.api.metadata_request(SpotifyUtil.gid2uri("track", new_obj.gid))
+			self.old_obj = self.obj
 			self.obj = new_obj
+			self.replaced = True
 			return True
+
+	def setStarred(self, starred = True):
+		self.spotify.api.set_starred(self.getURI(), starred)
 
 	def getNumber(self):
 		return self.obj.number
@@ -185,6 +191,15 @@ class SpotifyPlaylist(SpotifyObject):
 		self.obj = spotify.api.playlist_request(uri)
 		self.uri = uri
 
+	def __getitem__(self, index):
+		if index >= self.getNumTracks():
+			raise IndexError
+
+		return self.getTracks()[index]
+
+	def __len__(self):
+		return self.getNumTracks()
+
 	def getID(self):
 		uri_parts = self.uri.split(":")
 		if len(uri_parts) == 4:
@@ -197,6 +212,37 @@ class SpotifyPlaylist(SpotifyObject):
 
 	def getName(self):
 		return "Starred" if self.getID() == "starred" else self.obj.attributes.name
+
+	def rename(self, name):
+		# invalidate cache
+		self._Cache__cache = {}
+
+		return self.spotify.api.rename_playlist(self.getURI(), name)
+
+	def addTracks(self, tracks):
+		tracks = [tracks] if type(tracks) != list else tracks
+		uris = [track.getURI() for track in tracks]
+
+		uris_str = ",".join(uris)
+		self.spotify.api.playlist_add_track(self.getURI(), uris_str)
+
+		# invalidate cache
+		self._Cache__cache = {}
+
+	def removeTracks(self, tracks):
+		tracks = [tracks] if type(tracks) != list else tracks
+
+		uris = []
+		for track in tracks:
+			if track.replaced:
+				uris.append(SpotifyUtil.gid2uri("track", track.old_obj.gid))
+			else:
+				uris.append(self.getURI())
+
+		self.spotify.api.playlist_remove_track(self.getURI(), uris)
+
+		# invalidate cache
+		self._Cache__cache = {}
 
 	def getNumTracks(self):
 		# we can't rely on the stated length, some might not be available
@@ -228,7 +274,6 @@ class SpotifyPlaylist(SpotifyObject):
 				thread.join()
 
 			for k, v in sorted(results.items()):
-				print str(k)+": "+str(len(v))
 				tracks += v
 
 		return tracks
@@ -238,6 +283,15 @@ class SpotifyUserlist():
 		self.spotify = spotify
 		self.name = name
 		self.tracks = tracks
+
+	def __getitem__(self, index):
+		if index >= self.getNumTracks():
+			raise IndexError
+
+		return self.getTracks()[index]
+
+	def __len__(self):
+		return self.getNumTracks()
 
 	def getID(self):
 		return None
@@ -332,6 +386,8 @@ class SpotifyToplist():
 		return self.spotify.objectFromID(self.toplist_content_type, self.toplist.items)
 
 class Spotify():
+	AUTOREPLACE_TRACKS = True
+
 	def __init__(self, username, password): 
 		self.api = SpotifyAPI()
 		self.api.connect(username, password)
@@ -351,6 +407,13 @@ class Spotify():
 
 		playlist_uris += [playlist.uri for playlist in self.api.playlists_request(username).contents.items]
 		return self.objectFromURI(playlist_uris)
+
+	def newPlaylist(self, name):
+		uri = self.api.new_playlist(name)
+		return SpotifyPlaylist(self, uri=uri)
+
+	def removePlaylist(self, playlist):
+		return self.api.remove_playlist(playlist.getURI())
 
 	def getUserToplist(self, toplist_content_type = "track", username = None):
 		return SpotifyToplist(self, toplist_content_type, "user", username, None)
@@ -421,7 +484,7 @@ class Spotify():
 			objs = [obj for obj in objs if obj != False]
 			if uri_type == "track":
 				tracks = [SpotifyTrack(self, obj=obj) for obj in objs]
-				results = [track for track in tracks if track.isAvailable()]
+				results = [track for track in tracks if self.AUTOREPLACE_TRACKS == False or track.isAvailable()]
 			elif uri_type == "album":
 				results =  [SpotifyAlbum(self, obj=obj) for obj in objs]
 			elif uri_type == "artist":

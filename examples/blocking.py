@@ -14,11 +14,15 @@ sp.connect(sys.argv[1], sys.argv[2])
 
 def display_playlist(playlist):
 	print playlist.attributes.name+"\n"
+	return
 
-	track_uris = [track.uri for track in playlist.contents.items if not SpotifyUtil.is_local(track.uri)]
-	tracks = sp.metadata_request(track_uris)
-	for track in tracks:
-		print track.name
+	if playlist.length > 0:
+		track_uris = [track.uri for track in playlist.contents.items if not SpotifyUtil.is_local(track.uri)]
+		tracks = sp.metadata_request(track_uris)
+		for track in tracks:
+			print track.name
+	else:
+		print "no tracks"
 
 	print "\n"
 
@@ -68,3 +72,8 @@ elif action == "restriction":
 		print "Track is available!"
 	else:
 		print "Track is NOT available! Double-check this using the official client"
+
+elif action == "newplaylist":
+	name = sys.argv[4] if len(sys.argv) > 4 else "foobar"
+	uri = sp.new_playlist(name)
+	print uri

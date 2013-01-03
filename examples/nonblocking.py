@@ -12,10 +12,15 @@ def album_callback(sp, album):
 	uris = [SpotifyUtil.gid2uri("track", track.gid) for track in album.disc[0].track]	
 	sp.metadata_request(uris, track_callback)
 
+def new_playlist_callback(sp, resp):
+	print "callback!"
+	print resp
+
 def login_callback(sp, logged_in):
 	if logged_in:
 		uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:album:3OmHoatMS34vM7ZKb4WCY3"
-		sp.metadata_request(uri, album_callback)
+		#sp.metadata_request(uri, album_callback)
+		sp.new_playlist("foobar", new_playlist_callback)
 	else:
 		print "There was an error logging in"
 
