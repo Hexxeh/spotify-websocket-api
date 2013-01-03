@@ -1,1 +1,1 @@
-__all__ = ["spotify"]
+__all__ = ["spotify", "friendly"]
