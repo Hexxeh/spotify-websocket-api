@@ -6,7 +6,6 @@ from spotify_web.friendly import Spotify
 class SpotifyTest(unittest.TestCase):
 	def setUp(self):
 		self.spotify = Spotify(USERNAME, PASSWORD)
-		print self.spotify.logged_in()
 		if self.spotify.logged_in() != True:
 			print "Login failed"
 
@@ -32,6 +31,21 @@ class SpotifyTest(unittest.TestCase):
 			self.assertEqual(reference["title"], track.getName())
 			self.assertEqual(reference["artist"], track.getArtists(nameOnly = True))
 			self.assertEqual(reference["album"], track.getAlbum(nameOnly = True))
+
+	def test_playlist_add_delete(self):
+		playlist_name = "unittests"
+		before = len(self.spotify.getPlaylists())
+		new_playlist = self.spotify.newPlaylist(playlist_name)
+
+		playlist_names = [playlist.getName() for playlist in self.spotify.getPlaylists()]
+		self.assertIn(playlist_name, playlist_names)
+		self.assertEqual(before+1, len(self.spotify.getPlaylists()))
+
+		self.spotify.removePlaylist(new_playlist)
+
+		playlist_names = [playlist.getName() for playlist in self.spotify.getPlaylists()]
+		self.assertNotIn(playlist_name, playlist_names)
+		self.assertEqual(before, len(self.spotify.getPlaylists()))
 
 if __name__ == '__main__':
 	if "USERNAME" not in os.environ or "PASSWORD" not in os.environ:

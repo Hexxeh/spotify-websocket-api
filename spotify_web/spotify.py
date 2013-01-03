@@ -691,8 +691,6 @@ class SpotifyAPI():
 					return self.is_logged_in
 				except:
 					return False
-		except SSLError:
-			print "sslerro!"
 		except:
 			self.disconnect()
 			return False
@@ -705,4 +703,5 @@ class SpotifyAPI():
 		self.heartbeat_marker.set()
 
 	def disconnect(self):
-		self.ws.close()
+		if self.ws != None:
+			self.ws.close()
