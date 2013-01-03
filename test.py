@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, unittest
+import os, sys, unittest, time
 from spotify_web.friendly import Spotify
 
 class SpotifyTest(unittest.TestCase):
@@ -36,28 +36,13 @@ class SpotifyTest(unittest.TestCase):
 		playlist_name = "unittests"
 		before = len(self.spotify.getPlaylists())
 		new_playlist = self.spotify.newPlaylist(playlist_name)
-
+		time.sleep(2)
 		playlist_names = [playlist.getName() for playlist in self.spotify.getPlaylists()]
 		self.assertIn(playlist_name, playlist_names)
 		self.assertEqual(before+1, len(self.spotify.getPlaylists()))
 
 		self.spotify.removePlaylist(new_playlist)
-
-		playlist_names = [playlist.getName() for playlist in self.spotify.getPlaylists()]
-		self.assertNotIn(playlist_name, playlist_names)
-		self.assertEqual(before, len(self.spotify.getPlaylists()))
-
-	def test_playlist_add_delete(self):
-		playlist_name = "unittests"
-		before = len(self.spotify.getPlaylists())
-		new_playlist = self.spotify.newPlaylist(playlist_name)
-
-		playlist_names = [playlist.getName() for playlist in self.spotify.getPlaylists()]
-		self.assertIn(playlist_name, playlist_names)
-		self.assertEqual(before+1, len(self.spotify.getPlaylists()))
-
-		self.spotify.removePlaylist(new_playlist)
-
+		time.sleep(2)
 		playlist_names = [playlist.getName() for playlist in self.spotify.getPlaylists()]
 		self.assertNotIn(playlist_name, playlist_names)
 		self.assertEqual(before, len(self.spotify.getPlaylists()))

@@ -533,8 +533,11 @@ class SpotifyAPI():
 								#optype="remove", index=index, callback=callback)
 
 	def new_playlist_callback(self, sp, data, callback_data):
-		reply = playlist4service_pb2.CreateListReply()
-		reply.ParseFromString(base64.decodestring(data[1]))
+		try:
+			reply = playlist4service_pb2.CreateListReply()
+			reply.ParseFromString(base64.decodestring(data[1]))
+		except:
+			self.chain_callback(sp, False, callback_data)
 
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = "ADD"
