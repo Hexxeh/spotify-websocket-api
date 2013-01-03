@@ -586,6 +586,9 @@ class SpotifyAPI():
 		self.send_string(msg)
 
 	def send_string(self, msg):
+		if self.disconnecting:
+			return
+
 		msg_enc = json.dumps(msg, separators=(',',':'))
 		Logging.debug("sent " + msg_enc)
 		try:
