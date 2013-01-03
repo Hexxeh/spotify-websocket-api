@@ -2,6 +2,7 @@
 
 from ws4py.client.threadedclient import WebSocketClient
 from threading import Thread, Event
+from ssl import SSLError
 import base64, binascii, json, re, requests, sys, operator
 
 from .proto import mercury_pb2, metadata_pb2
@@ -587,8 +588,10 @@ class SpotifyAPI():
 	def send_string(self, msg):
 		msg_enc = json.dumps(msg, separators=(',',':'))
 		Logging.debug("sent " + msg_enc)
-		self.ws.send(msg_enc)
-
+		try:
+			self.ws.send(msg_enc)
+		except SSLError:
+			Logging.notice("SSL error, attempting to continue")
 	def recv_packet(self, msg):
 		Logging.debug("recv " + str(msg))
 		packet = json.loads(str(msg))
