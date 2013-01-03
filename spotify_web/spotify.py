@@ -1,13 +1,14 @@
 #!/usr/bin/python
 
-from gevent import monkey; monkey.patch_all()
-from ws4py.client.geventclient import WebSocketClient
-import base64, binascii, json, pprint, re, requests, string, sys, time, gevent, operator
+from ws4py.client.threadedclient import WebSocketClient
+from threading import Thread, Event
+import base64, binascii, json, re, requests, sys, operator
 
 from .proto import mercury_pb2, metadata_pb2
 from .proto import playlist4changes_pb2, playlist4content_pb2
 from .proto import playlist4issues_pb2, playlist4meta_pb2
-from .proto import playlist4ops_pb2, toplist_pb2
+from .proto import playlist4ops_pb2, playlist4service_pb2
+from .proto import toplist_pb2
 
 base62 = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -38,7 +39,7 @@ class WrapAsync():
 	timeout = 10
 
 	def __init__(self, callback, func, *args):
-		self.marker = gevent.event.AsyncResult()
+		self.marker = Event()
 
 		if callback == None:
 			callback = self.callback
@@ -47,19 +48,21 @@ class WrapAsync():
 		else:
 			callback = [callback, self.callback]
 
+		self.data = False
 		func(*args, callback=callback)
 
 	def callback(self, *args):
-		self.marker.set(args)
+		self.data = args
+		self.marker.set()
 
 	def get_data(self):
 		try:
-			data = self.marker.get(timeout = self.timeout)
+			self.marker.wait(timeout = self.timeout)
 
-			if len(data) > 0 and type(data[0] == SpotifyAPI):
-				data = data[1:]
+			if len(self.data) > 0 and type(self.data[0] == SpotifyAPI):
+				self.data = self.data[1:]
 
-			return data if len(data) > 1 else data[0]
+			return self.data if len(self.data) > 1 else self.data[0]
 		except:
 			return False
 
@@ -69,6 +72,12 @@ class SpotifyClient(WebSocketClient):
 
 	def opened(self):
 		self.api_object.login()
+
+	def received_message(self, m):
+		self.api_object.recv_packet(m)
+
+	def closed(self, code, message):
+		self.api_object.shutdown()
 
 class SpotifyUtil():
 	@staticmethod
@@ -127,7 +136,8 @@ class SpotifyAPI():
 	def __init__(self, login_callback_func = False):
 		self.auth_server = "play.spotify.com"
 
-		self.logged_in_marker = gevent.event.AsyncResult()
+		self.logged_in_marker = Event()
+		self.heartbeat_marker = Event()
 		self.username = None
 		self.password = None
 		self.account_type = None
@@ -186,10 +196,7 @@ class SpotifyAPI():
 
 		self.settings = resp.json()["config"]
 
-	def auth_from_json(self, json):
-		self.settings = json
-
-	def populate_userdata_callback(self, sp, resp, callback_data):
+	def populate_userdata_callback(self, sp, resp):
 		self.username = resp["user"]
 		self.country = resp["country"]
 		self.account_type = resp["catalogue"]
@@ -197,8 +204,7 @@ class SpotifyAPI():
 		if self.login_callback != False:
 			self.do_login_callback(True)
 		else:
-			self.logged_in_marker.set(True)
-		self.chain_callback(sp, resp, callback_data)
+			self.logged_in_marker.set()
 
 	def logged_in(self, sp, resp):
 		self.user_info_request(self.populate_userdata_callback)
@@ -213,15 +219,15 @@ class SpotifyAPI():
 
 	def do_login_callback(self, result):
 		if self.login_callback != False:
-			gevent.spawn(self.login_callback, self, result)
+			Thread(target=self.login_callback, args=(self, result)).start()
 		else:
-			self.logged_in_marker.set(False)
+			self.logged_in_marker.set()
 
 	def track_uri(self, track, callback = False):
-		tid = self.recurse_alternatives(track)
-		if tid == False:
+		track = self.recurse_alternatives(track)
+		if track == False:
 			return False
-		args = ["mp3160", tid]
+		args = ["mp3160", SpotifyUtil.gid2id(track.gid)]
 		return self.wrap_request("sp/track_uri", args, callback)
 
 	def parse_metadata(self, sp, resp, callback_data):
@@ -334,12 +340,12 @@ class SpotifyAPI():
 
 	def recurse_alternatives(self, track, attempted = []):
 		if self.is_track_available(track):
-			return SpotifyUtil.gid2id(track.gid)
+			return track
 		else:
 			for alternative in track.alternative:
 				if self.is_track_available(alternative):
-					return SpotifyUtil.gid2id(alternative.gid)
-
+					return alternative
+			return False
 			for alternative in track.alternative:
 				uri = SpotifyUtil.gid2uri("track", alternative.gid)
 				if uri not in attempted:
@@ -459,30 +465,84 @@ class SpotifyAPI():
 
 	def playlist_op_track(self, playlist_uri, track_uri, op, callback = None):
 		playlist = playlist_uri.split(":")
-		user = playlist[2]
-		if playlist[3] == "starred":
-			playlist_id = "starred"
+
+		if playlist_uri == "rootlist":
+			user = self.username
+			playlist_id = "rootlist"
 		else:
-			playlist_id = "playlist/"+playlist[4]
+			user = playlist[2]
+			if playlist[3] == "starred":
+				playlist_id = "starred"
+			else:
+				playlist_id = "playlist/"+playlist[4]
 
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = op
 		mercury_request.uri = "hm://playlist/user/"+user+"/" + playlist_id + "?syncpublished=1"
 		req = base64.encodestring(mercury_request.SerializeToString())
 		args = [0, req, base64.encodestring(track_uri)]
-		self.send_command("sp/hm_b64", args, callback)
+		return self.wrap_request("sp/hm_b64", args, callback)
 
-	def playlist_add_track(self, playlist_uri, track_uri, callback = None):
-		self.playlist_op_track(playlist_uri, track_uri, "ADD", callback)
+	def playlist_add_track(self, playlist_uri, track_uri, callback = False):
+		return self.playlist_op_track(playlist_uri, track_uri, "ADD", callback)
 
-	def playlist_remove_track(self, playlist_uri, track_uri, callback = None):
-		self.playlist_op_track(playlist_uri, track_uri, "REMOVE", callback)
+	def playlist_remove_track(self, playlist_uri, track_uri, callback = False):
+		return self.playlist_op_track(playlist_uri, track_uri, "REMOVE", callback)
 
-	def set_starred(self, track_uri, starred = True, callback = None):
+	def set_starred(self, track_uri, starred = True, callback = False):
 		if starred:
-			self.playlist_add_track("spotify:user:"+self.username+":starred", track_uri, callback)
+			return self.playlist_add_track("spotify:user:"+self.username+":starred", track_uri, callback)
 		else:
-			self.playlist_remove_track("spotify:user:"+self.username+":starred", track_uri, callback)
+			return self.playlist_remove_track("spotify:user:"+self.username+":starred", track_uri, callback)
+
+	def playlist_op(self, op, path, optype = "update", name = None, index = None, callback = None):
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = op
+		mercury_request.uri = "hm://" + path
+
+		req = base64.encodestring(mercury_request.SerializeToString())
+
+		op = playlist4ops_pb2.Op()
+		if optype == "update":
+			op.kind = playlist4ops_pb2.Op.UPDATE_LIST_ATTRIBUTES
+			op.update_list_attributes.new_attributes.values.name = name
+		elif optype == "remove":
+			op.kind = playlist4ops_pb2.Op.REM
+			op.rem.fromIndex = index
+			op.rem.length = 1
+
+		mercury_request_payload = mercury_pb2.MercuryRequest()
+		mercury_request_payload.uri = op.SerializeToString()
+
+		payload = base64.encodestring(mercury_request_payload.SerializeToString())
+
+		args = [0, req, payload]
+		return self.wrap_request("sp/hm_b64", args, callback, self.new_playlist_callback)
+
+	def new_playlist(self, name, callback = False):
+		return self.playlist_op("PUT", "playlist/user/"+self.username, name=name, callback=callback)
+
+	def rename_playlist(self, playlist_uri, name, callback = False):
+		path = "playlist/user/"+self.username+"/playlist/"+playlist_uri.split(":")[4]+"?syncpublished=true"
+		return self.playlist_op("MODIFY", path, name=name, callback=callback)
+
+	def remove_playlist(self, playlist_uri, callback = False):
+		return self.playlist_op_track("rootlist", playlist_uri, "REMOVE", callback=callback)
+		#return self.playlist_op("REMOVE", "playlist/user/"+self.username+"/rootlist?syncpublished=true",
+								#optype="remove", index=index, callback=callback)
+
+	def new_playlist_callback(self, sp, data, callback_data):
+		reply = playlist4service_pb2.CreateListReply()
+		reply.ParseFromString(base64.decodestring(data[1]))
+
+		mercury_request = mercury_pb2.MercuryRequest()
+		mercury_request.body = "ADD"
+		mercury_request.uri = "hm://playlist/user/"+self.username+"/rootlist?add_first=1&syncpublished=1"
+		req = base64.encodestring(mercury_request.SerializeToString())
+		args = [0, req, base64.encodestring(reply.uri)]
+
+		self.chain_callback(sp, reply.uri, callback_data)
+		self.send_command("sp/hm_b64", args)
 
 	def search_request(self, query, query_type = "all", max_results = 50, offset = 0, callback = False):
 		if max_results > 50:
@@ -545,7 +605,10 @@ class SpotifyAPI():
 				if callback == False:
 					Logging.debug("No callback was requested for comamnd "+str(pid)+", ignoring")
 				elif type(callback) == list:
-					callback[0](self, packet["result"], callback[1:])
+					if len(callback) > 1:
+						callback[0](self, packet["result"], callback[1:])
+					else:
+						callback[0](self, packet["result"])
 				else:
 					callback(self, packet["result"])
 
@@ -599,48 +662,46 @@ class SpotifyAPI():
 		else:
 			Logging.error(major_str + " - " + minor_str)
 
-	def event_handler(self):
-		while self.disconnecting == False:
-			m = self.ws.receive()
-			if m is not None:
-				self.recv_packet(str(m))
-			else:
-				break
-
 	def heartbeat_handler(self):
 		while self.disconnecting == False:
-			gevent.sleep(15)
 			self.heartbeat()
+			self.heartbeat_marker.wait(timeout=15)
 
 	def connect(self, username, password, timeout = 10):
 		if self.settings == None:
-			 if self.auth(username, password) == False:
-			 	return False
-			 self.username = username
-			 self.password = password
+			if self.auth(username, password) == False:
+				return False
+			self.username = username
+			self.password = password
+
 
 		Logging.notice("Connecting to "+self.settings["aps"]["ws"][0])
-		
+
 		try:
 			self.ws = SpotifyClient(self.settings["aps"]["ws"][0])
 			self.ws.set_api(self)
+			self.ws.daemon = True
 			self.ws.connect()
-			self.greenlets = [
-				gevent.spawn(self.event_handler),
-				gevent.spawn(self.heartbeat_handler)
-			]
-			if self.login_callback != False:
-				gevent.joinall(self.greenlets)
-			else:
+			heartbeat_thread = Thread(target=self.heartbeat_handler)
+			heartbeat_thread.daemon = True
+			heartbeat_thread.start()
+			if self.login_callback == False:
 				try:
-					return self.logged_in_marker.get(timeout=timeout)
+					self.logged_in_marker.wait(timeout=timeout)
+					return self.is_logged_in
 				except:
 					return False
 		except:
 			self.disconnect()
 			return False
 
-	def disconnect(self):
+	def set_log_level(self, level):
+		Logging.log_level = level
+
+	def shutdown(self):
 		self.disconnecting = True
-		gevent.sleep(1)
-		gevent.killall(self.greenlets)
+		self.heartbeat_marker.set()
+
+	def disconnect(self):
+		if self.ws != None:
+			self.ws.close()

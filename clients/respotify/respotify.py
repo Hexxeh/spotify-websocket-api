@@ -2,10 +2,9 @@
 
 import sys; sys.path.append("../..")
 from spotify_web.friendly import Spotify, SpotifyTrack, SpotifyUserlist
-from gevent.fileobject import FileObject
-from threading import Lock
+from threading import Thread, Lock, Event
 from mpd import MPDClient
-import os, subprocess, gevent
+import os, subprocess, time
 
 playing_playlist = None
 current_playlist = None
@@ -45,10 +44,11 @@ def display_playlist(playlist = None):
 
 	playlist = current_playlist if playlist == None else playlist
 
+	print playlist.getName()+"\n"
+
 	if playlist.getNumTracks() == 0:
 		print "No tracks currently in playlist"
 	else:
-		print playlist.getName()+"\n"
 		with client:
 			status = client.status()
 		playing_index = int(status["song"])+1 if "song" in status else -1
@@ -185,8 +185,11 @@ def command_help(*args):
 	for k, v in command_map.items():
 		print k+"\t\t"+v[1]
 
+quitting = False
 def command_quit(*args):
 	spotify.logout()
+	global quitting
+	quitting = True
 
 def command_current_playlist(*args):
 	display_playlist(playing_playlist)
@@ -210,8 +213,7 @@ command_map = {
 def command_loop():
 	header()
 	command_help()
-	sys.stdin = FileObject(sys.stdin)
-	while spotify.api.disconnecting == False:
+	while spotify.api.disconnecting == False and quitting == False:
 		sys.stdout.write("\n> ")
 		sys.stdout.flush()
 		command = raw_input().split(" ")
@@ -223,11 +225,12 @@ def command_loop():
 		else:
 			command_help()
 
+heartbeat_marker = Event()
 def heartbeat_handler():
 	while client != None:
 		with client:
 			client.status()
-		gevent.sleep(15)
+		heartbeat_marker.get(timeout=15)
 
 if len(sys.argv) < 2:
 	print "Usage: "+sys.argv[0]+" <username> <password>"
@@ -239,13 +242,14 @@ if spotify:
 	uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", sys.argv[1], sys.argv[2]])
 	with client:
 		client.connect(host="localhost", port="6600")
-	gevent.spawn(heartbeat_handler)
+	Thread(target=heartbeat_handler).start()
 	command_loop()
 	os.system("clear")
 	with client:
 		client.clear()
 		client.disconnect()
 		client = None
+		heartbeat_marker.set()
 	uri_resolver.kill()
 else:
 	print "Login failed"
