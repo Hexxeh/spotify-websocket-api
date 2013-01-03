@@ -7,5 +7,5 @@ setup(name = 'SpotifyWebsocketAPI',
 		version = '0.2',
 		author='Liam McLoughlin',
 		author_email='hexxeh@hexxeh.net',
-		packages=['spotify_web', 'spotify_web.proto', 'spotify_web.friendly'],
+		packages=['spotify_web', 'spotify_web.proto'],
 		)
