@@ -454,7 +454,7 @@ class SpotifyAPI():
 	def playlist_request(self, uri, fromnum = 0, num = 100, callback = False):
 		mercury_requests = mercury_pb2.MercuryRequest()
 
-		playlist = uri.replace("spotify:", "").replace(":", "/")
+		playlist = uri[8:].replace(":", "/")
 		mercury_request = mercury_pb2.MercuryRequest()
 		mercury_request.body = "GET"
 		mercury_request.uri = "hm://playlist/" + playlist + "?from=" + str(fromnum) + "&length=" + str(num)
