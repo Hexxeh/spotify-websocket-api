@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from ws4py.client.threadedclient import WebSocketClient
-from threading import Thread, Event
+from threading import Thread, Event, Lock
 from ssl import SSLError
 import base64, binascii, json, re, requests, sys, operator
 
@@ -148,6 +148,7 @@ class SpotifyAPI():
 
 		self.disconnecting = False
 		self.ws = None
+		self.ws_lock = Lock()
 		self.seq = 0
 		self.cmd_callbacks = {}
 		self.login_callback = login_callback_func
@@ -595,7 +596,8 @@ class SpotifyAPI():
 		msg_enc = json.dumps(msg, separators=(',',':'))
 		Logging.debug("sent " + msg_enc)
 		try:
-			self.ws.send(msg_enc)
+			with self.ws_lock:
+				self.ws.send(msg_enc)
 		except SSLError:
 			Logging.notice("SSL error, attempting to continue")
 	def recv_packet(self, msg):
