@@ -7,7 +7,7 @@ Standards-Version: 3.9.3
 
 Package: spotify-web
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}, python${python:Versions}, python-protobuf
+Depends: ${misc:Depends}, ${python:Depends}, python${python:Versions}, python-protobuf, python-lxml
 #Recommends: 
 Description: API for Spotify web socket service
  TODO
