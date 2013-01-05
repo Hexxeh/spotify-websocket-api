@@ -90,9 +90,12 @@ else:
 	else:
 		uri = sys.argv[3] if len(sys.argv) > 3 else "spotify:track:6NwbeybX6TDtXlpXvnUOZC"
 		obj = sp.objectFromURI(uri)
-		if obj.uri_type == "track":
-			print obj.getName(), obj.getDuration()/1000.0, "seconds"
-			play_track(obj.getFileURL())
+		if obj != None:
+			if obj.uri_type == "track":
+				print obj.getName(), obj.getDuration()/1000.0, "seconds"
+				play_track(obj.getFileURL())
+			else:
+				print "No support for yet for", obj.uri_type
 		else:
-			print "No support for yet for", obj.uri_type
+			print "Request for %s failed" % uri
 		sp.logout()
