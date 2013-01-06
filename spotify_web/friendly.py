@@ -365,7 +365,10 @@ class SpotifySearch():
 		return objs
 
 	def getObjByURI(self, result, obj_type):
-		uris = [elem[0].text for elem in list(result.find(obj_type+"s"))]
+		elems = result.find(obj_type+"s")
+		if elems == None:
+			elems = []
+		uris = [elem[0].text for elem in list(elems)]
 		objs = self.spotify.objectFromURI(uris, asArray = True)
 		return objs
 
