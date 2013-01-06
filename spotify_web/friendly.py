@@ -38,6 +38,25 @@ class Cache(object):
           res = cache[key] = self.func(*args, **kw)
       return res
 
+class SpotifyCacheManager():
+	def __init__(self):
+		self.track_cache = {}
+		self.album_cache = {}
+		self.artist_cache = {}
+
+	def get(self, uri):
+		cache = {
+			"track": self.track_cache,
+			"album": self.album_cache,
+			"artist": self.artist_cache,
+		}
+
+		uri_type = SpotifyUtil.get_uri_type(uri)
+		if uri_type not in cache:
+			return False
+
+
+
 class SpotifyObject():
 	def __str__(self):
 		return unicode(self).encode('utf-8')
