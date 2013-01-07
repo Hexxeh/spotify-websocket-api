@@ -6,7 +6,15 @@ Getting started
 
 Firstly, try out the demo script to make sure you've got the dependencies installed properly:
 
+* requests >= 1.0
+* ws4py
+* protobuf
+* lxml
+
+Then you can try one of the example scripts
+
 <pre>
+cd examples
 python blocking.py &lt;username&gt; &lt;password&gt; album
 </pre>
 
@@ -25,11 +33,10 @@ Experimental client
 -------------------
 
 Included is an experimental client called respotify, based on this API. It's almost identical to
-despotify-simple in terms of functionality. Be sure to have the following installed:
+despotify-simple in terms of functionality. Be sure to have the following additional dependencies installed:
 
-* requests >= 1.0
 * cherrypy
-* ws4py
+* web.py
 
 Once you've installed these, you can run the client like this:
 

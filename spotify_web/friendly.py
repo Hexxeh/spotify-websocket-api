@@ -79,7 +79,7 @@ class SpotifyMetadataObject(SpotifyObject):
 		self.spotify = spotify
 
 	def getName(self):
-		return unicode(self.obj.name)
+		return self.obj.name
 
 	def getPopularity(self):
 		return self.obj.popularity
