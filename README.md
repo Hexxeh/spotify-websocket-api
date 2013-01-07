@@ -15,8 +15,10 @@ This should show an album title and a list of track titles for it.
 Using the API is pretty simple, here's the basics:
 
 <pre>
-sp = SpotifyAPI(login_callback)
-sp.connect(username, password)
+sp = Spotify("username", "password")
+results = sp.search("carly rae jepsen")
+for track in results.getTrack()
+  print track
 </pre>
 
 Experimental client
@@ -65,15 +67,16 @@ What's implemented?
 
 * Login via username/password
 * Metadata retrieval (track/album/artist)
-* Playlist and rootlist support (add/remove tracks only, playlist creation/deletion/renaming not yet suppported)
+* Playlist and rootlist support (add/remove tracks, creation/renaming/deletion)
 * Toplists for both regions and users (track/album/artist only)
 * Starring/unstarring tracks
 * MP3 playback URL retrieval
 
 What's NOT implemented?
 -----------------------
-* Playlist creation/deleting/renaming
-* Maybe more? Feel free to add to this list
+* Inbox (not currently supported via the web client it appears)
+* Subscribing to playlist updates
+* Social functionality
 
 TODO
 ----
@@ -82,3 +85,8 @@ Want to help out? Great! Here's a a list of things that need doing or improving:
 
 * An example graphical client using the API (preferably multi-platform, OSX/Linux)
 * Anything from the unimplemented list above
+
+Want to write a library in another language?
+--------------------------------------------
+
+If you'd like to help out with this library or write a new one for another language do let me know and pop into #despotify on EFnet. I'm aware of people working on Java and Node.js libraries currently, more are of course welcome.
