@@ -282,24 +282,20 @@ class SpotifyPlaylist(SpotifyObject):
 		tracks = self.spotify.objectFromURI(track_uris, asArray = True)
 
 		if self.obj.contents.truncated == True:
-			tracks_per_call = 100
-			start = tracks_per_call
-
-			results = {}
-			def worker(spotify, uri, start, tracks):
+			def work_function(spotify, uri, start, tracks):
 				track_uris = [item.uri for item in spotify.api.playlist_request(uri, start).contents.items]
 				tracks += spotify.objectFromURI(track_uris, asArray = True)
 
-			threads = []
+			results = {}
+			jobs = []
+			tracks_per_call = 100
+			start = tracks_per_call
 			while start < self.obj.length:
 				results[start] = []
-				threads.append(Thread(target=worker, args=(self.spotify, self.uri, start, results[start])))
+				jobs.append((self.spotify, self.uri, start, results[start]))
 				start += tracks_per_call
 
-			for thread in threads:
-				thread.start()
-			for thread in threads:
-				thread.join()
+			Spotify.doWorkerQueue(work_function, jobs)			
 
 			for k, v in sorted(results.items()):
 				tracks += v
