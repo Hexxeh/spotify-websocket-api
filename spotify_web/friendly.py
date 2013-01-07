@@ -360,7 +360,10 @@ class SpotifySearch():
 		return self.getObjByURI(self.result, "playlist")
 
 	def getObjByID(self, result, obj_type):
-		ids = [elem[0].text for elem in list(result.find(obj_type+"s"))]
+		elems = result.find(obj_type+"s")
+		if elems == None:
+			elems = []
+		ids = [elem[0].text for elem in list(elems)]
 		objs = self.spotify.objectFromID(obj_type, ids)
 		return objs
 
