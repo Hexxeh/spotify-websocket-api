@@ -374,9 +374,12 @@ class SpotifyAPI():
 
 		return args
 
-	def wrap_request(self, command, args, callback, int_callback = None):
+	def wrap_request(self, command, args, callback, int_callback = None, retries = 3):
 		if callback == False:
-			data = WrapAsync(int_callback, self.send_command, command, args).get_data()
+			for attempt in range(0, retries):
+				data = WrapAsync(int_callback, self.send_command, command, args).get_data()
+				if data != False:
+					break
 			return data
 		else:
 			callback = [callback] if type(callback) != list else callback
