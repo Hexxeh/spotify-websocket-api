@@ -3,6 +3,7 @@ from spotify_web.proto import mercury_pb2, metadata_pb2
 from functools import partial
 from lxml import etree
 from threading import Thread
+from Queue import Queue
 import sys
 
 class Cache(object):
@@ -59,7 +60,7 @@ class SpotifyCacheManager():
 
 class SpotifyObject():
 	def __str__(self):
-		return unicode(self).encode('utf-8')
+		return unicode(self)
 
 	def __unicode__(self):
 		return self.getName()
@@ -490,15 +491,14 @@ class Spotify():
 				results = [SpotifyPlaylist(self, uri=uris[0])]
 			else:
 				thread_results = {}
-				def worker(spotify, uri, results, index):
-					results[index] = SpotifyPlaylist(spotify, uri=uri)
-				threads = []
+				jobs = []
 				for index in range(0, len(uris)):
-					threads.append(Thread(target=worker, args=(self, uris[index], thread_results, index)))
-				for thread in threads:
-					thread.start()
-				for thread in threads:
-					thread.join()
+					jobs.append((self, uris[index], thread_results, index))
+
+				def work_function(spotify, uri, results, index):
+					results[index] = SpotifyPlaylist(spotify, uri=uri)
+
+				Spotify.doWorkerQueue(work_function, jobs)
 
 				results = [v for k, v in thread_results.items()]
 
@@ -529,6 +529,23 @@ class Spotify():
 				return None
 
 		return results
+
+	@staticmethod
+	def doWorkerQueue(work_function, args, worker_thread_count = 5):
+		def worker():
+			while not q.empty():
+				args = q.get()
+				work_function(*args)
+				q.task_done()
+
+		q = Queue()
+		for arg in args:
+			q.put(arg)
+
+		for i in range(worker_thread_count):
+			t = Thread(target=worker)
+			t.start()
+		q.join()
 
 	@staticmethod
 	def imagesFromArray(image_objs):
