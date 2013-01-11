@@ -292,7 +292,7 @@ class SpotifyAPI():
 		elif len(callback_data) == 1:
 			callback_data[0](self, data)
 
-	def is_track_available(self, track):
+	def is_track_available(self, track, country):
 		allowed_countries = []
 		forbidden_countries = []
 		available = False
@@ -304,10 +304,10 @@ class SpotifyAPI():
 			forbidden_str = restriction.countries_forbidden
 			forbidden_countries += [forbidden_str[i:i+2] for i in range(0, len(forbidden_str), 2)]
 
-			allowed = not restriction.HasField("countries_allowed") or self.country in allowed_countries
+			allowed = not restriction.HasField("countries_allowed") or country in allowed_countries
 			forbidden = self.country in forbidden_countries and len(forbidden_countries) > 0
 
-			if self.country in allowed_countries and self.country in forbidden_countries:
+			if country in allowed_countries and country in forbidden_countries:
 				allowed = True
 				forbidden = False
 
@@ -340,12 +340,13 @@ class SpotifyAPI():
 
 		return available
 
-	def recurse_alternatives(self, track, attempted = []):
-		if self.is_track_available(track):
+	def recurse_alternatives(self, track, attempted = [], country = None):
+		country = self.country if country == None else country
+		if self.is_track_available(track, country):
 			return track
 		else:
 			for alternative in track.alternative:
-				if self.is_track_available(alternative):
+				if self.is_track_available(alternative, country):
 					return alternative
 			return False
 			for alternative in track.alternative:

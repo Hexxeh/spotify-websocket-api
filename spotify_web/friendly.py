@@ -90,8 +90,9 @@ class SpotifyTrack(SpotifyMetadataObject):
 	replaced = False
 
 	@Cache
-	def isAvailable(self):
-		new_obj = self.spotify.api.recurse_alternatives(self.obj)
+	def isAvailable(self, country = None):
+		country = self.spotify.api.country if country == None else country
+		new_obj = self.spotify.api.recurse_alternatives(self.obj, country = country)
 		if new_obj == False:
 			return False
 		else:
