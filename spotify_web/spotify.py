@@ -579,6 +579,48 @@ class SpotifyAPI():
 
 	def heartbeat(self):
 		self.send_command("sp/echo", "h", callback = False)
+	
+	def send_track_end(self, lid, track_uri, ms_played, callback = False):
+		ms_played = int(ms_played)
+		ms_played_union = ms_played
+		n_seeks_forward = 0
+		n_seeks_backward = 0
+		ms_seeks_forward = 0
+		ms_seeks_backward = 0
+		ms_latency = 100
+		display_track = None
+		play_context = "unknown"
+		source_start = "unknown"
+		source_end = "unknown"
+		reason_start = "unknown"
+		reason_end = "unknown"
+		referrer = "unknown"
+		referrer_version = "0.1.0"
+		referrer_vendor = "com.spotify"
+		max_continuous = ms_played
+		args = [lid, ms_played, ms_played_union, n_seeks_forward, n_seeks_backward, ms_seeks_forward, ms_seeks_backward, ms_latency, display_track, play_context, source_start, source_end, reason_start, reason_end, referrer, referrer_version, referrer_vendor, max_continuous]
+		return self.wrap_request("sp/track_end", args, callback)
+	
+	def send_track_event(self, lid, event, ms_where, callback = False):
+		if event == "pause" or event == "stop":
+			ev_n = 4
+		elif event == "unpause" or "continue" or "play":
+			ev_n = 3
+		else:
+			return False
+		return self.wrap_request("sp/track_event", [lid, ev_n, int(ms_where)], callback)
+
+	def send_track_progress(self, lid, ms_played, callback = False):
+		source_start = "unknown"
+		reason_start = "unknown"
+		ms_latency = 100
+		play_context = "unknown"
+		display_track = ""
+		referrer = "unknown"
+		referrer_version = "0.1.0"
+		referrer_vendor = "com.spotify"
+		args = [lid, source_start, reason_start, int(ms_played), int(ms_latency), play_context, display_track, referrer, referrer_version, referrer_vendor]
+		return self.wrap_request("sp/track_progress", args, callback)
 
 	def send_command(self, name, args = [], callback = None):
 		msg = {
@@ -618,7 +660,7 @@ class SpotifyAPI():
 				callback = self.cmd_callbacks[pid]
 
 				if callback == False:
-					Logging.debug("No callback was requested for comamnd "+str(pid)+", ignoring")
+					Logging.debug("No callback was requested for command "+str(pid)+", ignoring")
 				elif type(callback) == list:
 					if len(callback) > 1:
 						callback[0](self, packet["result"], callback[1:])
