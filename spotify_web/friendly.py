@@ -144,7 +144,7 @@ class SpotifyArtist(SpotifyMetadataObject):
 		return Spotify.imagesFromArray(self.obj.portrait)
 
 	def getBiography(self):
-		return self.obj.biography.text
+		return self.obj.biography[0].text if len(self.obj.biography) else None
 
 	def getNumTracks(self):
 		# this means the number of top tracks, really
