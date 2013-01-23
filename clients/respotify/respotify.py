@@ -247,9 +247,8 @@ if __name__ == '__main__':
     if args.password is None:
         args.password = getpass.getpass("Please enter your Spotify password")
 
-    import pdb; pdb.set_trace()
     spotify = Spotify(args.username, args.password)
-    if spotify:
+    if spotify.logged_in():
         os.system("kill `pgrep -f respotify-helper` &> /dev/null")
         uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", 
                                         args.username, args.password])
