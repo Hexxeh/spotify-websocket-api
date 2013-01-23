@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import argparse
+import getpass
 import sys; sys.path.append("../..")
 from spotify_web.friendly import Spotify, SpotifyTrack, SpotifyUserlist
 from threading import Thread, Lock, Event
@@ -235,14 +237,22 @@ def heartbeat_handler():
 
 if __name__ == '__main__':
 
-    if len(sys.argv) < 2:
-        print "Usage: "+sys.argv[0]+" <username> <password>"
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Command line Spotify client')
+    parser.add_argument('username', help='Your spotify username')
+    parser.add_argument('password', nargs='?', default=None,
+                        help='<Optional> your spotify password')
 
-    spotify = Spotify(sys.argv[1], sys.argv[2])
+    args = parser.parse_args()
+
+    if args.password is None:
+        args.password = getpass.getpass("Please enter your Spotify password")
+
+    import pdb; pdb.set_trace()
+    spotify = Spotify(args.username, args.password)
     if spotify:
         os.system("kill `pgrep -f respotify-helper` &> /dev/null")
-        uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", sys.argv[1], sys.argv[2]])
+        uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", 
+                                        args.username, args.password])
         with client:
             client.connect(host="localhost", port="6600")
         Thread(target=heartbeat_handler).start()
