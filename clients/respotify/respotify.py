@@ -232,25 +232,28 @@ def heartbeat_handler():
 			client.status()
 		heartbeat_marker.get(timeout=15)
 
-if len(sys.argv) < 2:
-	print "Usage: "+sys.argv[0]+" <username> <password>"
-	sys.exit(1)
 
-spotify = Spotify(sys.argv[1], sys.argv[2])
-if spotify:
-	os.system("kill `pgrep -f respotify-helper` &> /dev/null")
-	uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", sys.argv[1], sys.argv[2]])
-	with client:
-		client.connect(host="localhost", port="6600")
-	Thread(target=heartbeat_handler).start()
-	command_loop()
-	os.system("clear")
-	with client:
-		client.clear()
-		client.disconnect()
-		client = None
-		heartbeat_marker.set()
-	uri_resolver.kill()
-else:
-	print "Login failed"
-	sys.exit(1)
+if __name__ == '__main__':
+
+    if len(sys.argv) < 2:
+        print "Usage: "+sys.argv[0]+" <username> <password>"
+        sys.exit(1)
+
+    spotify = Spotify(sys.argv[1], sys.argv[2])
+    if spotify:
+        os.system("kill `pgrep -f respotify-helper` &> /dev/null")
+        uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", sys.argv[1], sys.argv[2]])
+        with client:
+            client.connect(host="localhost", port="6600")
+        Thread(target=heartbeat_handler).start()
+        command_loop()
+        os.system("clear")
+        with client:
+            client.clear()
+            client.disconnect()
+            client = None
+            heartbeat_marker.set()
+        uri_resolver.kill()
+    else:
+        print "Login failed"
+        sys.exit(1)
