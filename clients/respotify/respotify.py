@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import argparse
+import getpass
 import sys; sys.path.append("../..")
 from spotify_web.friendly import Spotify, SpotifyTrack, SpotifyUserlist
 from threading import Thread, Lock, Event
@@ -232,25 +234,35 @@ def heartbeat_handler():
 			client.status()
 		heartbeat_marker.get(timeout=15)
 
-if len(sys.argv) < 2:
-	print "Usage: "+sys.argv[0]+" <username> <password>"
-	sys.exit(1)
 
-spotify = Spotify(sys.argv[1], sys.argv[2])
-if spotify:
-	os.system("kill `pgrep -f respotify-helper` &> /dev/null")
-	uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", sys.argv[1], sys.argv[2]])
-	with client:
-		client.connect(host="localhost", port="6600")
-	Thread(target=heartbeat_handler).start()
-	command_loop()
-	os.system("clear")
-	with client:
-		client.clear()
-		client.disconnect()
-		client = None
-		heartbeat_marker.set()
-	uri_resolver.kill()
-else:
-	print "Login failed"
-	sys.exit(1)
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Command line Spotify client')
+    parser.add_argument('username', help='Your spotify username')
+    parser.add_argument('password', nargs='?', default=None,
+                        help='<Optional> your spotify password')
+
+    args = parser.parse_args()
+
+    if args.password is None:
+        args.password = getpass.getpass("Please enter your Spotify password")
+
+    spotify = Spotify(args.username, args.password)
+    if spotify.logged_in():
+        os.system("kill `pgrep -f respotify-helper` &> /dev/null")
+        uri_resolver = subprocess.Popen([sys.executable, "respotify-helper.py", 
+                                        args.username, args.password])
+        with client:
+            client.connect(host="localhost", port="6600")
+        Thread(target=heartbeat_handler).start()
+        command_loop()
+        os.system("clear")
+        with client:
+            client.clear()
+            client.disconnect()
+            client = None
+            heartbeat_marker.set()
+        uri_resolver.kill()
+    else:
+        print "Login failed"
+        sys.exit(1)
