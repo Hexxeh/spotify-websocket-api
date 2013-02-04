@@ -208,6 +208,7 @@ class SpotifyAPI():
             return False
 
         self.settings = resp.json()["config"]
+        return True
 
     def populate_userdata_callback(self, sp, resp):
         self.username = resp["user"]
