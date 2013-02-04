@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from distutils.core import setup
+from setuptools import setup
 
 
 setup(
@@ -8,7 +8,7 @@ setup(
     author='Liam McLoughlin',
     author_email='hexxeh@hexxeh.net',
     packages=['spotify_web', 'spotify_web.proto'],
-    requires=[
+    install_requires=[
         'requests>=1.1.0',
         'ws4py>=0.2.4',
         'lxml>=3.1beta1',
