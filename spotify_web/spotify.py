@@ -184,7 +184,7 @@ class SpotifyAPI():
         resp = session.get("https://" + self.auth_server + "/redirect/facebook/notification.php", params=secret_payload, headers=headers)
         data = resp.text
 
-        rx = re.compile("<form><input id=\"secret\" type=\"hidden\" value=\"(.*)\" /></form>")
+        rx = re.compile("\"csrftoken\":\"(.*?)\"")
         r = rx.search(data)
 
         if not r or len(r.groups()) < 1:
