@@ -4,6 +4,8 @@ Spotify WebSocket API [![Build Status](https://travis-ci.org/Hexxeh/spotify-webs
 Getting started
 ---------------
 
+NOTE: This API will only work with paid Spotify accounts. I'm perfectly fine with this restriction and won't be attempting to circumvent it, nor will I merge patches that do. It'd only end in a game of cat and mouse which is a waste of everyone's time. If you like Spotify, buy a Premium account and tell the industry that it's a great payment model for music.
+
 Firstly, try out the demo script to make sure you've got the dependencies installed properly:
 
 * requests >= 1.0
