@@ -8,7 +8,14 @@ from spotify_web.spotify import SpotifyAPI
 
 def track_uri_callback(sp, result):
     if sys.platform == "darwin":
-        os.system("open -a VLC \""+result["uri"]+"\"")
+        script = """
+            tell application "VLC"
+                Stop
+                OpenURL "%s"
+                Play
+            end tell
+        """ % result["uri"]
+        os.system("osascript -e '%s'" % script)
     elif sys.platform == "linux" or sys.platform == "linux2" or sys.platform[:7] == "freebsd":
         os.system("vlc \""+result["uri"]+"\"")
     else:
