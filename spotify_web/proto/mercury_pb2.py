@@ -11,7 +11,7 @@ from google.protobuf import descriptor_pb2
 DESCRIPTOR = descriptor.FileDescriptor(
   name='mercury.proto',
   package='spotify.mercury.proto',
-  serialized_pb='\n\rmercury.proto\x12\x15spotify.mercury.proto\"P\n\x16MercuryMultiGetRequest\x12\x36\n\x07request\x18\x01 \x03(\x0b\x32%.spotify.mercury.proto.MercuryRequest\"J\n\x14MercuryMultiGetReply\x12\x32\n\x05reply\x18\x01 \x03(\x0b\x32#.spotify.mercury.proto.MercuryReply\"O\n\x0eMercuryRequest\x12\x0b\n\x03uri\x18\x01 \x01(\t\x12\x14\n\x0c\x63ontent_type\x18\x02 \x01(\t\x12\x0c\n\x04\x62ody\x18\x03 \x01(\x0c\x12\x0c\n\x04\x65tag\x18\x04 \x01(\x0c\"\x83\x02\n\x0cMercuryReply\x12\x13\n\x0bstatus_code\x18\x01 \x01(\x11\x12\x16\n\x0estatus_message\x18\x02 \x01(\t\x12\x45\n\x0c\x63\x61\x63he_policy\x18\x03 \x01(\x0e\x32/.spotify.mercury.proto.MercuryReply.CachePolicy\x12\x0b\n\x03ttl\x18\x04 \x01(\x11\x12\x0c\n\x04\x65tag\x18\x05 \x01(\x0c\x12\x14\n\x0c\x63ontent_type\x18\x06 \x01(\t\x12\x0c\n\x04\x62ody\x18\x07 \x01(\x0c\"@\n\x0b\x43\x61\x63hePolicy\x12\x0c\n\x08\x43\x41\x43HE_NO\x10\x01\x12\x11\n\rCACHE_PRIVATE\x10\x02\x12\x10\n\x0c\x43\x41\x43HE_PUBLIC\x10\x03')
+  serialized_pb='\n\rmercury.proto\x12\x15spotify.mercury.proto\"P\n\x16MercuryMultiGetRequest\x12\x36\n\x07request\x18\x01 \x03(\x0b\x32%.spotify.mercury.proto.MercuryRequest\"J\n\x14MercuryMultiGetReply\x12\x32\n\x05reply\x18\x01 \x03(\x0b\x32#.spotify.mercury.proto.MercuryReply\"O\n\x0eMercuryRequest\x12\x0b\n\x03uri\x18\x01 \x01(\t\x12\x14\n\x0c\x63ontent_type\x18\x02 \x01(\t\x12\x0c\n\x04\x62ody\x18\x03 \x01(\x0c\x12\x0c\n\x04\x65tag\x18\x04 \x01(\x0c\"\x83\x02\n\x0cMercuryReply\x12\x13\n\x0bstatus_code\x18\x01 \x01(\x11\x12\x16\n\x0estatus_message\x18\x02 \x01(\t\x12\x45\n\x0c\x63\x61\x63he_policy\x18\x03 \x01(\x0e\x32/.spotify.mercury.proto.MercuryReply.CachePolicy\x12\x0b\n\x03ttl\x18\x04 \x01(\x11\x12\x0c\n\x04\x65tag\x18\x05 \x01(\x0c\x12\x14\n\x0c\x63ontent_type\x18\x06 \x01(\x0c\x12\x0c\n\x04\x62ody\x18\x07 \x01(\x0c\"@\n\x0b\x43\x61\x63hePolicy\x12\x0c\n\x08\x43\x41\x43HE_NO\x10\x01\x12\x11\n\rCACHE_PRIVATE\x10\x02\x12\x10\n\x0c\x43\x41\x43HE_PUBLIC\x10\x03')
 
 
 
@@ -190,8 +190,8 @@ _MERCURYREPLY = descriptor.Descriptor(
       options=None),
     descriptor.FieldDescriptor(
       name='content_type', full_name='spotify.mercury.proto.MercuryReply.content_type', index=5,
-      number=6, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=unicode("", "utf-8"),
+      number=6, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value="",
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
