@@ -208,6 +208,19 @@ class SpotifyAPI():
             return False
 
         self.settings = resp.json()["config"]
+
+        #Get wss settings
+        resolver_payload = {
+            "client": "24:0:0:" + str(self.settings["version"])
+        }
+
+        resp = session.get('http://' + self.settings["aps"]["resolver"]["hostname"], params=resolver_payload, headers=headers)
+
+        resp_json = resp.json()
+        wss_hostname = resp_json["ap_list"][0].split(":")[0]
+
+        self.settings["wss"] = "wss://" + wss_hostname + "/"
+
         return True
 
     def populate_userdata_callback(self, sp, resp):
@@ -747,10 +760,10 @@ class SpotifyAPI():
             self.username = username
             self.password = password
 
-        Logging.notice("Connecting to "+self.settings["aps"]["ws"][0])
-
+        Logging.notice("Connecting to "+self.settings["wss"])
+        
         try:
-            self.ws = SpotifyClient(self.settings["aps"]["ws"][0])
+            self.ws = SpotifyClient(self.settings["wss"])
             self.ws.set_api(self)
             self.ws.daemon = True
             self.ws.connect()
