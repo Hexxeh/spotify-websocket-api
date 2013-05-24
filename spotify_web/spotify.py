@@ -721,6 +721,7 @@ class SpotifyAPI():
         minor = err["error"][1]
 
         major_err = {
+            8: "Rate request error",
             12: "Track error",
             13: "Hermes error",
             14: "Hermes service error",
