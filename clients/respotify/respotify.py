@@ -201,7 +201,7 @@ def command_info(*args):
     print "Username: " + spotify.api.username
     print "Account type: " + spotify.api.account_type
     print "Country: " + spotify.api.country
-    print "Connected to " + spotify.api.settings["aps"]["ws"][0].replace("wss://", "").replace(":443", "")
+    print "Connected to " + spotify.api.settings["wss"].replace("wss://", "").replace(":443", "").replace("/", "")
 
 
 def command_help(*args):
@@ -259,7 +259,7 @@ def heartbeat_handler():
     while client is not None:
         with client:
             client.status()
-        heartbeat_marker.get(timeout=15)
+        heartbeat_marker.wait(timeout=15)
 
 
 if __name__ == '__main__':
