@@ -171,17 +171,12 @@ class SpotifyAPI():
             return False
 
         headers = {
-            "User-Agent": "spotify-websocket-api (Chrome/13.37 compatible-ish)",
+            "User-Agent": "node-spotify-web in python (Chrome/13.37 compatible-ish)",
         }
 
         session = requests.session()
 
-        secret_payload = {
-            "album": "http://open.spotify.com/album/2mCuMNdJkoyiXFhsQCLLqw",
-            "song": "http://open.spotify.com/track/6JEK0CvvjDjjMUBFoXShNZ",
-        }
-
-        resp = session.get("https://" + self.auth_server + "/redirect/facebook/notification.php", params=secret_payload, headers=headers)
+        resp = session.get("https://" + self.auth_server, headers=headers)
         data = resp.text
 
         rx = re.compile("\"csrftoken\":\"(.*?)\"")
@@ -227,9 +222,24 @@ class SpotifyAPI():
         self.username = resp["user"]
         self.country = resp["country"]
         self.account_type = resp["catalogue"]
-        self.is_logged_in = True
+
+        # If you're thinking about changing this: don't.
+        # I don't want to play cat and mouse with Spotify.
+        # I just want an open-library that works for paying
+        # users.
+        magic = base64.b64encode(resp["catalogue"]) == "cHJlbWl1bQ=="
+        self.is_logged_in = True if magic else False
+
+        if not magic:
+            Logging.error("Please upgrade to Premium")
+            self.disconnect()
+        else:
+            heartbeat_thread = Thread(target=self.heartbeat_handler)
+            heartbeat_thread.daemon = True
+            heartbeat_thread.start()
+
         if self.login_callback:
-            self.do_login_callback(True)
+            self.do_login_callback(self.is_logged_in)
         else:
             self.logged_in_marker.set()
 
@@ -752,7 +762,7 @@ class SpotifyAPI():
     def heartbeat_handler(self):
         while not self.disconnecting:
             self.heartbeat()
-            self.heartbeat_marker.wait(timeout=15)
+            self.heartbeat_marker.wait(timeout=18)
 
     def connect(self, username, password, timeout=10):
         if self.settings is None:
@@ -768,9 +778,6 @@ class SpotifyAPI():
             self.ws.set_api(self)
             self.ws.daemon = True
             self.ws.connect()
-            heartbeat_thread = Thread(target=self.heartbeat_handler)
-            heartbeat_thread.daemon = True
-            heartbeat_thread.start()
             if not self.login_callback:
                 try:
                     self.logged_in_marker.wait(timeout=timeout)
