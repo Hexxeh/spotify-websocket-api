@@ -171,7 +171,8 @@ class SpotifyAPI():
             return False
 
         headers = {
-            "User-Agent": "node-spotify-web in python (Chrome/13.37 compatible-ish)",
+            #"User-Agent": "node-spotify-web in python (Chrome/13.37 compatible-ish)",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36",
         }
 
         session = requests.session()
@@ -264,7 +265,7 @@ class SpotifyAPI():
         track = self.recurse_alternatives(track)
         if not track:
             return False
-        args = ["mp3160", SpotifyUtil.gid2id(track.gid)]
+        args = ["mp3160", SpotifyUtil.gid2id(track.gid), "rtmp"]
         return self.wrap_request("sp/track_uri", args, callback)
 
     def parse_metadata(self, sp, resp, callback_data):
