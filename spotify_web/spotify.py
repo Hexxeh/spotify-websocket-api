@@ -307,7 +307,7 @@ class SpotifyAPI():
         track = self.recurse_alternatives(track)
         if not track:
             return False
-        args = ["mp3160", SpotifyUtil.gid2id(track.gid), "rtmp"]
+        args = ["mp3160", SpotifyUtil.gid2id(track.gid)]
         return self.wrap_request("sp/track_uri", args, callback)
 
     def parse_metadata(self, sp, resp, callback_data):
