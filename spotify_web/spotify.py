@@ -172,7 +172,7 @@ class SpotifyAPI():
 
         headers = {
             #"User-Agent": "node-spotify-web in python (Chrome/13.37 compatible-ish)",
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/31.0.1650.63 Safari/537.36"
         }
 
         session = requests.session()
@@ -180,6 +180,7 @@ class SpotifyAPI():
         resp = session.get("https://" + self.auth_server, headers=headers)
         data = resp.text
 
+        #csrftoken
         rx = re.compile("\"csrftoken\":\"(.*?)\"")
         r = rx.search(data)
 
@@ -189,12 +190,49 @@ class SpotifyAPI():
             return False
         secret = r.groups()[0]
 
+        #trackingID
+        rx = re.compile("\"trackingId\":\"(.*?)\"")
+        r = rx.search(data)
+
+        if not r or len(r.groups()) < 1:
+            Logging.error("There was a problem authenticating, no auth trackingId found")
+            self.do_login_callback(False)
+            return False
+        trackingId = r.groups()[0]
+
+        #referrer
+        rx = re.compile("\"referrer\":\"(.*?)\"")
+        r = rx.search(data)
+
+        if not r or len(r.groups()) < 1:
+            Logging.error("There was a problem authenticating, no auth referrer found")
+            self.do_login_callback(False)
+            return False
+        referrer = r.groups()[0]
+
+        #landingURL
+        rx = re.compile("\"landingURL\":\"(.*?)\"")
+        r = rx.search(data)
+
+        if not r or len(r.groups()) < 1:
+            Logging.error("There was a problem authenticating, no auth landingURL found")
+            self.do_login_callback(False)
+            return False
+        landingURL = r.groups()[0]
+
         login_payload = {
             "type": "sp",
             "username": username,
             "password": password,
             "secret": secret,
+            "trackingId":trackingId,
+            "referrer": referrer,
+            "landingURL": landingURL,
+            "cf":"",
         }
+
+        Logging.notice(str(login_payload))
+        
         resp = session.post("https://" + self.auth_server + "/xhr/json/auth.php", data=login_payload, headers=headers)
         resp_json = resp.json()
 
@@ -220,6 +258,10 @@ class SpotifyAPI():
         return True
 
     def populate_userdata_callback(self, sp, resp):
+        
+        # Send screen size
+        self.send_command("sp/log", [41, 1, 0, 0, 0, 0], None)
+        
         self.username = resp["user"]
         self.country = resp["country"]
         self.account_type = resp["catalogue"]
