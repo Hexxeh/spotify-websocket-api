@@ -765,7 +765,16 @@ class SpotifyAPI():
         if cmd == "do_work":
             Logging.debug("Got do_work message, payload: "+payload)
             self.send_command("sp/work_done", ["v1"], self.work_callback)
-
+        if cmd == "ping_flash2":
+            if len(msg[1]) >= 20:
+                key = [[7, 203], [15, 15], [1, 96], [19, 93], [3, 165], [14, 130], [12, 16], [4, 6], [6, 225], [13, 37]]
+                input = [ int(x) for x in msg[1].split(" ") ]
+                pong = u' ' .join([unicode((input[i[0]] ^ i[1])) for i in key ])
+                Logging.debug("Sending pong %s" % pong)
+                self.send_command("sp/pong_flash2", [pong,], None)
+        if cmd == "login_complete":
+            Logging.debug("Login Complete")
+	    self.user_info_request(self.populate_userdata_callback)
     def handle_error(self, err):
         if len(err) < 2:
             Logging.error("Unknown error "+str(err))
