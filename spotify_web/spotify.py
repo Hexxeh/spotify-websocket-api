@@ -103,7 +103,7 @@ class SpotifyUtil():
             res = [v % 62] + res
             v /= 62
         id = ''.join([base62[i] for i in res])
-        return ("spotify:"+uritype+":"+id).rjust(22, "0")
+        return ("spotify:"+uritype+":"+id.rjust(22, "0"))
 
     @staticmethod
     def uri2id(uri):
