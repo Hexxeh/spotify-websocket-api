@@ -1,0 +1,80 @@
+package spotify.radio.proto;
+
+message RadioRequest {
+  repeated string uris = 1; // For a playlist, this will be a list of 20 sampled tracks
+  optional int32 salt = 2; // If set to 0, it will trigger the old behavior where all 250 tracks are returned
+  // optional int32 offset = 3; // DEPRECATED
+  optional int32 length = 4;
+  optional string stationId = 5; // This is used only for decorating with thumbs up/down, not to pull the uris
+  repeated string lastTracks = 6; // spotify uri's with spotify:track: stripped
+}
+
+// Deprecated
+message MultiSeedRequest {
+  repeated string uris = 1;
+}
+
+message Feedback { // i.e. thumb
+  optional string uri = 1; // omit the spotify:track: prefix
+  optional string type = 2;
+  optional double timestamp = 3;
+}
+
+// Result from a radio station request
+message Tracks {
+  repeated string gids = 1;
+  optional string source = 2;
+  optional string identity = 3;
+  repeated string tokens = 4; // As many as there are tracks
+  repeated Feedback feedback = 5; // all thumbs for the station among the tracks returned (no particular order)
+}
+
+message Station {
+  optional string id = 1;
+  optional string title = 2;
+  optional string titleUri = 3; // If it's a playlist then this will be a playlist uri
+  optional string subtitle = 4;
+  optional string subtitleUri = 5; // For a track radio this will be the artist, etc..
+  optional string imageUri = 6;
+  optional double lastListen = 7; // Used for sorting
+  repeated string seeds = 8; // Not really used today. This should essentially be a list with only [titleUri]
+  optional int32 thumbsUp = 9;
+  optional int32 thumbsDown = 10;
+}
+
+// Reponse for rules request. Contains the javascript as a string.
+message Rules {
+  optional string js = 1;
+}
+
+message StationResponse {
+  optional Station station = 1;
+  repeated Feedback feedback = 2;
+}
+
+message StationListRequest {
+  optional bool canReadNewStations = 1;
+}
+
+message StationList {
+  repeated Station stations = 1;
+}
+
+message LikedPlaylist {
+  optional string uri = 1;
+}
+
+message GenreListRequest {
+    optional string lang = 1;
+}
+
+message GenreList {
+    repeated Genre genres = 1;
+}
+
+message Genre {
+    optional string id = 1;
+    optional string name = 2;
+    optional string imageUri = 3;
+    optional int32 bitMask = 4;
+}

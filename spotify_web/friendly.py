@@ -4,6 +4,10 @@ from threading import Thread
 from Queue import Queue
 
 from .spotify import SpotifyAPI, SpotifyUtil
+from tunigoapi import Tunigo
+
+import uuid
+
 # from spotify_web.proto import mercury_pb2, metadata_pb2
 
 
@@ -138,6 +142,12 @@ class SpotifyTrack(SpotifyMetadataObject):
         else:
             return self.spotify.objectFromInternalObj("album", self.obj.album)[0]
 
+    def getAlbumURI(self):
+        return SpotifyUtil.gid2uri('album', self.obj.album.gid)
+
+    def getAlbumCovers(self):
+        return Spotify.imagesFromArray(self.obj.album.cover)
+
     @Cache
     def getArtists(self, nameOnly=False):
         return self.spotify.objectFromInternalObj("artist", self.obj.artist, nameOnly)
@@ -161,23 +171,55 @@ class SpotifyArtist(SpotifyMetadataObject):
 
     @Cache
     def getTracks(self, objOnly=False):
-        top_tracks = []
+        track_objs = []
 
         for obj in self.obj.top_track:
             if obj.country == self.spotify.api.country:
-                top_tracks = obj
+                track_objs += obj.track
 
         if objOnly:
-            return top_tracks.track
+            return track_objs
 
-        if len(top_tracks.track) == 0:
-            return None
+        if len(track_objs) == 0:
+            return track_objs
 
-        return self.spotify.objectFromInternalObj("track", top_tracks.track)
+        return self.spotify.objectFromInternalObj("track", track_objs)
+
+    @Cache
+    def getAlbumGroup(self, name):
+        albums = []
+
+        for obj in getattr(self.obj, name + '_group'):
+            if not obj.album:
+                continue
+
+            # TODO do we need determine which album? (instead of picking first)
+            item = self.spotify.objectFromInternalObj("album", obj.album[0])
+            if not item:
+                continue
+
+            albums.append(item[0])
+
+        return albums
+
+    def getAlbums(self):
+        return self.getAlbumGroup('album')
+
+    def getSingles(self):
+        return self.getAlbumGroup('single')
+
+    def getCompilations(self):
+        return self.getAlbumGroup('compilation')
+
+    def getAppearsOn(self):
+        return self.getAlbumGroup('appears_on')
 
 
 class SpotifyAlbum(SpotifyMetadataObject):
     uri_type = "album"
+
+    def getYear(self):
+        return int(self.obj.date.year)
 
     def getLabel(self):
         return self.obj.label
@@ -250,8 +292,26 @@ class SpotifyPlaylist(SpotifyObject):
     def getURI(self):
         return self.uri
 
+    def getUsername(self):
+        username = self.getURI().replace("spotify:user:", "")
+        return username[0:username.index(":")]
+
     def getName(self):
         return "Starred" if self.getID() == "starred" else self.obj.attributes.name
+
+    def getDescription(self):
+        return self.obj.attributes.description if self.obj != None and self.obj.attributes.description != None else ""
+
+    def getImages(self):
+        if self.obj != None and self.obj.attributes.picture != None:
+            images = {}
+            size  = 300
+            image_url = Spotify.imageFromId(SpotifyUtil.gid2id(self.obj.attributes.picture), size)
+            if image_url != None:
+                images[size] = image_url
+                return images
+        return None
+
 
     def rename(self, name):
         ret = self.spotify.api.rename_playlist(self.getURI(), name)
@@ -427,6 +487,128 @@ class SpotifyToplist():
             return []
         return self.spotify.objectFromID(self.toplist_content_type, self.toplist.items)
 
+class SpotifyLink():
+    def __init__(self, spotify, obj):
+        self.spotify = spotify
+        self.uri = obj.uri
+        self.display_name = obj.display_name
+        if obj.HasField("parent"):
+            self.parent = SpotifyLink(spotify, obj.parent)
+        else:
+            self.parent = None
+
+    def getContentType(self):
+        if ":artist:" in self.uri:
+            return 'artist'
+        if ":album:" in self.uri:
+            return 'album'
+        if ":track:" in self.uri:
+            return 'track'
+        if ":playlist:" in self.uri:
+            return 'playlist'
+        if ":user:" in self.uri:
+            return 'user'
+
+    def getObject(self):
+        return self.spotify.objectFromURI(self.uri, asArray=False)
+
+class SpotifyReasonField():
+    def __init__(self, spotify, obj, index):
+        self.spotify = spotify
+        self.text  = obj.text
+        self.uri   = obj.uri
+        self.index = index
+
+class SpotifyReason():
+    def __init__(self, spotify, obj):
+        self.spotify = spotify
+        self.text    = obj.text        
+        self.fields  = []
+        i = 0
+        for field in obj.fields:
+            self.fields.append(SpotifyReasonField(spotify, field, i))
+            i = i + 1
+
+    def getFulltext(self):
+        fulltext = self.text
+        for field in self.fields:
+            fulltext = fulltext.replace("{" + str(field.index) + "}", field.text)
+        return fulltext
+
+
+class SpotifyStory():
+    def __init__(self, spotify, obj):
+        self.spotify = spotify
+        self.recommended_item = SpotifyLink(spotify, obj.recommended_item)
+        self.reason = SpotifyReason(spotify, obj.reason_text)
+        self.obj = obj
+
+    def getImages(self):
+        return Spotify.imagesFromArray(self.obj.hero_image, must_convert_to_id=False)
+
+    def getDescription(self):
+        return self.reason.getFulltext()
+
+    def getURI(self):
+        return self.recommended_item.uri
+
+    def getContentType(self):
+        return self.recommended_item.getContentType()
+
+    def getObject(self):
+        return self.recommended_item.getObject()
+
+class SpotifyRadio(object):
+    def __init__(self, spotify, obj, id, title, title_uri, last_listen):
+        self.spotify     = spotify
+        self.obj         = obj
+        self.id          = id
+        self.title       = title
+        self.title_uri   = title_uri
+        self.last_listen = last_listen
+
+    def getURI(self):
+        return self.title_uri
+
+    def getId(self):
+        return self.id
+
+    def getTitle(self):
+        return self.title
+
+    def getImages(self):        
+        if self.obj != None and self.obj.imageUri != None:
+            image_id = ""
+            if self.obj.imageUri.startswith('spotify:image:'):
+                image_id = self.obj.imageUri.replace('spotify:image:', '')
+            elif self.obj.imageUri.startswith("spotify:mosaic:"):
+                image_id = self.obj.imageUri.replace('spotify:mosaic:', '')[0:40] # Pick the first image in the mosaic only
+
+            if image_id != "":
+                images = {}
+                image_url = Spotify.imageFromId(image_id, 300)
+                if image_url != None:
+                    images[300] = image_url
+                    return images
+        return None
+
+    def getImageURI(self):
+        return self.image_uri
+
+    def getTracks(self, num_tracks=20):
+        track_uris  = []
+        result = self.spotify.api.radio_tracks_request(stationUri=self.getURI(), stationId=self.getId(), num_tracks=num_tracks)
+        for track_gid in result.gids:
+            track_uris.append("spotify:track:" + track_gid)
+        return self.spotify.objectFromURI(track_uris, asArray=True)
+
+class SpotifyRadioStation(SpotifyRadio):
+    def __init__(self, spotify, obj):
+        SpotifyRadio.__init__(self, spotify, obj, obj.id, obj.title, obj.seeds[0], obj.lastListen)
+
+class SpotifyRadioGenre(SpotifyRadio):
+    def __init__(self, spotify, obj):
+        SpotifyRadio.__init__(self, spotify, obj, uuid.uuid4().hex, obj.name, 'spotify:genre:' + str(obj.id), 0)
 
 class Spotify():
     AUTOREPLACE_TRACKS = True
@@ -434,12 +616,21 @@ class Spotify():
     def __init__(self, username, password):
         self.api = SpotifyAPI()
         self.api.connect(username, password)
+        self.tunigo = Tunigo(region=self.api.country)
 
     def logged_in(self):
         return self.api.is_logged_in and not self.api.disconnecting
 
     def logout(self):
         self.api.disconnect()
+
+    @Cache     
+    def getMyMusic(self, type="albums"):
+        uris = []
+        collection = self.api.my_music_request(type)
+        for item in collection:
+            uris.append(item['uri'])
+        return self.objectFromURI(uris, asArray=True)
 
     @Cache
     def getPlaylists(self, username=None):
@@ -466,6 +657,47 @@ class Spotify():
 
     def getRegionToplist(self, toplist_content_type="track", region=None):
         return SpotifyToplist(self, toplist_content_type, "region", None, region)
+
+    def getFeaturedPlaylists(self):
+        try:
+            pl_json = self.tunigo.getFeaturedPlaylists()
+            return self.parse_tunigo_playlists(pl_json)
+        except Exception, e:
+            print "ERROR: " + str(e)
+
+    def getTopPlaylists(self):
+        pl_json = self.tunigo.getTopPlaylists()
+        return self.parse_tunigo_playlists(pl_json)
+
+    def getNewReleases(self):
+        al_json = self.tunigo.getNewReleases()
+
+        album_uris  = []
+        for item_json in al_json['items']:
+            album_uris.append(item_json['release']['uri'])
+
+        return self.objectFromURI(album_uris, asArray=True)
+
+    def discover(self):
+        stories = []
+        result = self.api.discover_request()
+        for story in result.stories:
+            stories.append(SpotifyStory(self, story))
+        return stories
+
+    def getRadioStations(self):
+        stations  = []
+        result = self.api.radio_stations_request()
+        for station in result.stations:
+            stations.append(SpotifyRadioStation(self, station))
+        return stations
+
+    def getRadioGenres(self):
+        genres  = []
+        result = self.api.radio_genres_request()
+        for genre in result.genres:
+            genres.append(SpotifyRadioGenre(self, genre))
+        return genres
 
     def search(self, query, query_type="all", max_results=50, offset=0):
         return SpotifySearch(self, query, query_type=query_type, max_results=max_results, offset=offset)
@@ -545,6 +777,23 @@ class Spotify():
 
         return results
 
+    def parse_tunigo_playlists(self, pl_json):
+        playlists = []
+        for item_json in pl_json['items']:
+            playlist_uri  = item_json['playlist']['uri']
+            
+            uri_parts = playlist_uri.split(':')
+            if len(uri_parts) < 2:
+                continue
+
+            # TODO support playlist folders properly
+            if uri_parts[1] in ['start-group', 'end-group']:
+                continue
+
+            playlists.append(playlist_uri)
+
+        return self.objectFromURI(playlists, asArray=True)
+
     @staticmethod
     def doWorkerQueue(work_function, args, worker_thread_count=5):
         def worker():
@@ -563,10 +812,32 @@ class Spotify():
         q.join()
 
     @staticmethod
-    def imagesFromArray(image_objs):
+    def imagesFromArray(image_objs, must_convert_to_id=True):
         images = {}
         for image_obj in image_objs:
-            size = str(image_obj.width)
-            images[size] = "https://d3rt1990lpmkn.cloudfront.net/" + size + "/" + SpotifyUtil.gid2id(image_obj.file_id)
+            size = image_obj.width
+            if size <= 60:
+                size = 60
+            elif size <= 160:
+                size = 160
+            elif size <= 300:
+                size = 300
+            elif size <= 320:
+                size = 320
+            elif size <= 640:
+                size = 640
+            
+            image_id = SpotifyUtil.gid2id(image_obj.file_id) if must_convert_to_id else image_obj.file_id
+            image_url = Spotify.imageFromId(image_id, size)
+            if image_url != None:
+                images[size] = image_url
 
         return images
+
+    @staticmethod
+    def imageFromId(image_id, size):        
+        if image_id == "00000000000000000000000000000000":
+            image_url = None
+        else:
+            image_url = "https://d3rt1990lpmkn.cloudfront.net/" + str(size) + "/" + str(image_id)
+        return image_url
